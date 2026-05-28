@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Koda Forge | Central de Gestão</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -10,423 +10,485 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <style>
-*{box-sizing:border-box}
-body{font-family:system-ui,-apple-system,sans-serif;margin:0}
-::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:3px}
-.nb{width:100%;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:#94a3b8;font-size:14px;font-weight:500;cursor:pointer;background:none;border:none;text-align:left;border-left:3px solid transparent;transition:all .15s}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{font-family:system-ui,-apple-system,sans-serif;margin:0;overflow-x:hidden}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#94a3b8;border-radius:3px}
+
+/* Sidebar — mobile: drawer, desktop: static */
+#sidebar{position:fixed;top:0;left:0;height:100%;width:240px;z-index:40;transform:translateX(-100%);transition:transform .25s ease;display:flex;flex-direction:column;background:#0f172a;overflow-y:auto}
+#sidebar.open{transform:translateX(0)}
+@media(min-width:768px){
+  #sidebar{position:relative;transform:none;flex-shrink:0}
+  #mob-overlay{display:none!important}
+  #mob-nav{display:none!important}
+  #mc{padding-bottom:24px!important}
+  #mob-menu-btn{display:none!important}
+}
+
+/* Overlay */
+#mob-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:39;display:none;backdrop-filter:blur(2px)}
+#mob-overlay.show{display:block}
+
+/* Bottom nav mobile */
+#mob-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #e2e8f0;z-index:30;display:flex;padding:6px 0;padding-bottom:max(6px,env(safe-area-inset-bottom))}
+.mn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:2px 4px;font-size:9px;font-weight:600;color:#94a3b8;cursor:pointer;border:none;background:none;transition:color .15s;letter-spacing:.02em}
+.mn i{font-size:20px;display:block}
+.mn.mna{color:#6366f1}
+.mn.mna i{color:#6366f1}
+
+/* Nav buttons sidebar */
+.nb{width:100%;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:#94a3b8;font-size:14px;font-weight:500;cursor:pointer;background:none;border:none;text-align:left;border-left:3px solid transparent;transition:all .15s}
 .nb:hover{background:rgba(255,255,255,.06);color:#e2e8f0}
 .na{background:rgba(99,102,241,.15)!important;color:#818cf8!important;border-left-color:#6366f1!important}
-.card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05)}
-.kpi{transition:transform .15s,box-shadow .15s}.kpi:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.1)}
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:500;transition:all .15s}
+.nl{font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.08em;padding:4px 12px;margin-top:8px;display:block}
+
+/* Cards */
+.card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.kpi{transition:transform .15s,box-shadow .15s}
+@media(min-width:768px){.kpi:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.1)}}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:14px;font-weight:500;transition:all .15s;white-space:nowrap}
 .bp{background:#6366f1;color:#fff}.bp:hover{background:#4f46e5}
 .bs{background:#f1f5f9;color:#475569}.bs:hover{background:#e2e8f0}
-.bsm{padding:5px 10px;font-size:12px;border-radius:6px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px}
+.bsm{padding:7px 10px;font-size:12px;border-radius:6px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s}
 .be{background:#eff6ff;color:#2563eb}.be:hover{background:#dbeafe}
 .bd{background:#fee2e2;color:#dc2626}.bd:hover{background:#fecaca}
-.br{background:#fef3c7;color:#b45309}
-.fi{width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none;transition:border-color .15s;background:#fff}
+
+/* Form */
+.fi{width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:15px;outline:none;transition:border-color .15s;background:#fff;-webkit-appearance:none;appearance:none}
 .fi:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1)}
 .fl{display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px}
-.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
 .bn{background:#dbeafe;color:#1d4ed8}.bc{background:#fef3c7;color:#b45309}
 .bq{background:#ede9fe;color:#6d28d9}.bpr{background:#fce7f3;color:#be185d}
 .bco{background:#dcfce7;color:#15803d}.bpe{background:#fee2e2;color:#b91c1c}
 .bcf{background:#dcfce7;color:#15803d}.bpd{background:#fef3c7;color:#b45309}.bca{background:#fee2e2;color:#b91c1c}
 .bfx{background:#fef9c3;color:#854d0e}.bvr{background:#dbeafe;color:#1d4ed8}
 .bi{background:#e0e7ff;color:#3730a3}
-.mw{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;display:none;align-items:center;justify-content:center;padding:16px}
+
+/* Modal */
+.mw{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;display:none;align-items:flex-end;justify-content:center;padding:0}
 .mw.open{display:flex}
-.mo{background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto}
+.mo{background:#fff;border-radius:20px 20px 0 0;width:100%;max-height:95vh;overflow-y:auto;animation:slideUp .2s ease}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+@media(min-width:640px){
+  .mw{align-items:center;padding:16px}
+  .mo{border-radius:16px;max-width:560px;animation:none}
+}
+
+/* Table */
 table{width:100%;border-collapse:collapse}
-th{background:#f8fafc;padding:11px 16px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
-td{padding:11px 16px;font-size:13px;color:#334155;border-top:1px solid #f1f5f9}
+th{background:#f8fafc;padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+td{padding:10px 14px;font-size:13px;color:#334155;border-top:1px solid #f1f5f9;white-space:nowrap}
 tr:hover td{background:#fafafa}
+
+/* Mobile cards for lists (hides table on small screens) */
+.mob-card{display:block}
+.desk-table{display:none}
+@media(min-width:640px){.mob-card{display:none}.desk-table{display:block}}
+
+/* Progress bar */
 .pb{height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden}
 .pf{height:100%;border-radius:4px;transition:width .4s}
-.em{text-align:center;padding:48px 16px;color:#94a3b8}
-.em i{font-size:36px;margin-bottom:12px;display:block}
-.toast{position:fixed;bottom:20px;right:20px;z-index:100;background:#1e293b;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;transform:translateY(60px);opacity:0;transition:all .25s;max-width:280px}
-.toast.show{transform:translateY(0);opacity:1}
-.nl{font-size:10px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.08em;padding:4px 12px;margin-top:8px;display:block}
+
+/* Empty state */
+.em{text-align:center;padding:40px 16px;color:#94a3b8}
+.em i{font-size:32px;margin-bottom:10px;display:block}
+
+/* Toast */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);z-index:100;background:#1e293b;color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;opacity:0;transition:all .25s;white-space:nowrap;max-width:90vw;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+@media(min-width:768px){.toast{bottom:24px;left:auto;right:24px;transform:translateY(10px)}.toast.show{transform:translateY(0)}}
+
+/* Firebase badge */
 .fb-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
 .fb-on{background:#dcfce7;color:#15803d}
 .fb-off{background:#fee2e2;color:#b91c1c}
-@media print{#sidebar,header,.no-print{display:none!important}#mc{padding:0}}
+
+/* Misc */
+.safe-bottom{padding-bottom:max(80px,calc(80px + env(safe-area-inset-bottom)))}
+@media(min-width:768px){.safe-bottom{padding-bottom:24px}}
+@media print{#sidebar,header,#mob-nav,.no-print{display:none!important}#mc{padding:0!important}}
 </style>
 </head>
 <body class="bg-slate-100">
+
+<!-- Mobile overlay -->
+<div id="mob-overlay" data-action="close-sidebar"></div>
+
+<!-- Layout -->
 <div class="flex h-screen overflow-hidden">
 
-<!-- Sidebar -->
-<aside id="sidebar" class="w-60 bg-slate-900 flex flex-col flex-shrink-0 overflow-y-auto">
-  <div class="p-5 border-b border-slate-800">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-        <i class="fas fa-bolt text-white text-xs"></i>
-      </div>
-      <div>
-        <div class="text-white font-bold text-sm">Koda Forge</div>
-        <div id="fb-status" class="fb-badge fb-off mt-0.5"><i class="fas fa-circle text-[8px]"></i>Local</div>
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <div class="p-5 border-b border-slate-800 flex-shrink-0">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-bolt text-white text-xs"></i>
+          </div>
+          <div>
+            <div class="text-white font-bold text-sm">Koda Forge</div>
+            <div id="fb-status" class="fb-badge fb-off mt-0.5"><i class="fas fa-circle" style="font-size:7px"></i>Local</div>
+          </div>
+        </div>
+        <button data-action="close-sidebar" class="text-slate-500 hover:text-slate-300 bg-transparent border-0 cursor-pointer md:hidden p-1">
+          <i class="fas fa-times text-lg"></i>
+        </button>
       </div>
     </div>
-  </div>
-  <nav class="flex-1 p-3 space-y-0.5">
-    <span class="nl">Principal</span>
-    <button class="nb na" data-action="nav" data-page="dashboard"><i class="fas fa-chart-pie w-4 text-center"></i>Dashboard</button>
-    <button class="nb" data-action="nav" data-page="leads"><i class="fas fa-user-plus w-4 text-center"></i>Leads<span id="bl" class="ml-auto text-xs bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded-full hidden"></span></button>
-    <button class="nb" data-action="nav" data-page="vendas"><i class="fas fa-handshake w-4 text-center"></i>Vendas<span id="bv" class="ml-auto text-xs bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded-full hidden"></span></button>
-    <button class="nb" data-action="nav" data-page="gastos"><i class="fas fa-receipt w-4 text-center"></i>Gastos</button>
-    <span class="nl">Análise</span>
-    <button class="nb" data-action="nav" data-page="metas"><i class="fas fa-bullseye w-4 text-center"></i>Metas</button>
-    <button class="nb" data-action="nav" data-page="relatorios"><i class="fas fa-chart-bar w-4 text-center"></i>Relatórios</button>
-    <span class="nl">Sistema</span>
-    <button class="nb" data-action="nav" data-page="config"><i class="fas fa-sliders w-4 text-center"></i>Configurações</button>
-  </nav>
-  <div class="p-4 border-t border-slate-800 text-center text-slate-600 text-xs">Koda Forge © 2026</div>
-</aside>
+    <nav class="flex-1 p-3 space-y-0.5">
+      <span class="nl">Principal</span>
+      <button class="nb na" data-action="nav" data-page="dashboard"><i class="fas fa-chart-pie w-4 text-center"></i>Dashboard</button>
+      <button class="nb" data-action="nav" data-page="leads"><i class="fas fa-user-plus w-4 text-center"></i>Leads<span id="bl" class="ml-auto text-xs bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded-full hidden"></span></button>
+      <button class="nb" data-action="nav" data-page="vendas"><i class="fas fa-handshake w-4 text-center"></i>Vendas<span id="bv" class="ml-auto text-xs bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded-full hidden"></span></button>
+      <button class="nb" data-action="nav" data-page="gastos"><i class="fas fa-receipt w-4 text-center"></i>Gastos</button>
+      <span class="nl">Análise</span>
+      <button class="nb" data-action="nav" data-page="metas"><i class="fas fa-bullseye w-4 text-center"></i>Metas</button>
+      <button class="nb" data-action="nav" data-page="relatorios"><i class="fas fa-chart-bar w-4 text-center"></i>Relatórios</button>
+      <span class="nl">Sistema</span>
+      <button class="nb" data-action="nav" data-page="config"><i class="fas fa-sliders w-4 text-center"></i>Configurações</button>
+    </nav>
+    <div class="p-4 border-t border-slate-800 text-center text-slate-600 text-xs flex-shrink-0">Koda Forge © 2026</div>
+  </aside>
 
-<!-- Main -->
-<div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-  <header class="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between flex-shrink-0 no-print">
-    <h1 id="ptitle" class="font-bold text-slate-800 text-base">Dashboard</h1>
-    <div class="flex items-center gap-2">
-      <button data-action="import" class="btn bs" style="padding:6px 12px;font-size:12px"><i class="fas fa-file-import"></i> Importar</button>
-      <button data-action="export" class="btn bs" style="padding:6px 12px;font-size:12px"><i class="fas fa-file-export"></i> Exportar</button>
-      <button data-action="demo" class="btn bs" style="padding:6px 12px;font-size:12px"><i class="fas fa-database"></i> Demo</button>
-      <input type="file" id="impf" accept=".json" style="display:none">
-    </div>
-  </header>
-  <main id="mc" class="flex-1 overflow-y-auto p-6"></main>
+  <!-- Main -->
+  <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between flex-shrink-0 no-print" style="padding-top:max(12px,env(safe-area-inset-top))">
+      <div class="flex items-center gap-3">
+        <button id="mob-menu-btn" data-action="open-sidebar" class="w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 bg-transparent border-0 cursor-pointer">
+          <i class="fas fa-bars text-lg"></i>
+        </button>
+        <h1 id="ptitle" class="font-bold text-slate-800 text-base">Dashboard</h1>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button data-action="new-item" class="btn bp md:hidden" style="padding:7px 14px;font-size:13px">
+          <i class="fas fa-plus"></i>
+        </button>
+        <div class="hidden md:flex items-center gap-2">
+          <button data-action="import" class="btn bs" style="padding:6px 12px;font-size:12px"><i class="fas fa-file-import"></i> Importar</button>
+          <button data-action="export" class="btn bs" style="padding:6px 12px;font-size:12px"><i class="fas fa-file-export"></i> Exportar</button>
+          <button data-action="demo" class="btn bs" style="padding:6px 12px;font-size:12px"><i class="fas fa-database"></i> Demo</button>
+        </div>
+        <button data-action="export" class="md:hidden w-9 h-9 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 bg-transparent border-0 cursor-pointer">
+          <i class="fas fa-file-export"></i>
+        </button>
+      </div>
+    </header>
+    <main id="mc" class="flex-1 overflow-y-auto p-3 md:p-6 safe-bottom"></main>
+  </div>
 </div>
-</div>
+
+<!-- Bottom nav mobile -->
+<nav id="mob-nav">
+  <button class="mn mna" data-action="nav" data-page="dashboard"><i class="fas fa-chart-pie"></i>Dashboard</button>
+  <button class="mn" data-action="nav" data-page="leads"><i class="fas fa-user-plus"></i>Leads</button>
+  <button class="mn" data-action="nav" data-page="vendas"><i class="fas fa-handshake"></i>Vendas</button>
+  <button class="mn" data-action="nav" data-page="gastos"><i class="fas fa-receipt"></i>Gastos</button>
+  <button class="mn" data-action="open-sidebar"><i class="fas fa-bars"></i>Menu</button>
+</nav>
 
 <!-- Modal -->
 <div id="mwrap" class="mw">
   <div class="mo" id="mdiv"></div>
 </div>
 
-<!-- Toast -->
 <div id="toast" class="toast"></div>
+<input type="file" id="impf" accept=".json" style="display:none">
 
 <script>
 // ── Constants ────────────────────────────────────────────────────────────────
-const LSK = 'kf_v2';
-const FBK = 'kf_fb';
-const LEAD_ST = ['Novo','Contatado','Qualificado','Proposta Enviada','Convertido','Perdido'];
-const LEAD_FT = ['Indicação','Instagram','Facebook','Google','Site','LinkedIn','WhatsApp','Evento','Outro'];
-const GCAT   = ['Salários','Comissões','Marketing','Infraestrutura','Software/Assinaturas','Impostos','Aluguel','Outras'];
-const PAG    = ['PIX','Boleto','Cartão de Crédito','Cartão de Débito','Transferência','Dinheiro'];
-const VND_ST = ['Confirmada','Pendente','Cancelada'];
-const MO_PT  = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const MO_SH  = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const LSK='kf_v2', FBK='kf_fb';
+const LEAD_ST=['Novo','Contatado','Qualificado','Proposta Enviada','Convertido','Perdido'];
+const LEAD_FT=['Indicação','Instagram','Facebook','Google','Site','LinkedIn','WhatsApp','Evento','Outro'];
+const GCAT=['Salários','Comissões','Marketing','Infraestrutura','Software/Assinaturas','Impostos','Aluguel','Outras'];
+const PAG=['PIX','Boleto','Cartão de Crédito','Cartão de Débito','Transferência','Dinheiro'];
+const VND_ST=['Confirmada','Pendente','Cancelada'];
+const MO_PT=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MO_SH=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 // ── State ────────────────────────────────────────────────────────────────────
-let D = {leads:[],vendas:[],gastos:[],metas:{},socios:['Guilherme','Vinicius','Alisson','Italo']};
-let CH = {};
-let curMo = new Date().toISOString().slice(0,7);
-let curPage = 'dashboard';
-let lF = {s:'',st:'',resp:''};
-let vF = {s:'',st:'',resp:''};
-let gF = {s:'',cat:'',tipo:''};
-let db = null;
-let unsubs = [];
-let refreshTimer = null;
+let D={leads:[],vendas:[],gastos:[],metas:{},socios:['Guilherme','Vinicius','Alisson','Italo']};
+let CH={}, curMo=new Date().toISOString().slice(0,7), curPage='dashboard';
+let lF={s:'',st:'',resp:''}, vF={s:'',st:'',resp:''}, gF={s:'',cat:'',tipo:''};
+let db=null, unsubs=[], refreshTimer=null;
 
 // ── Utils ────────────────────────────────────────────────────────────────────
-const uid   = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-const R$    = v => new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
-const fmtD  = d => d ? new Date(d+'T12:00:00').toLocaleDateString('pt-BR') : '—';
-const today = () => new Date().toISOString().slice(0,10);
-const moLabel = m => { if(!m)return''; const[y,mo]=m.split('-'); return MO_SH[+mo-1]+'/'+y; };
-const moName  = m => { if(!m)return''; const[y,mo]=m.split('-'); return MO_PT[+mo-1]+' '+y; };
-const esc     = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const shiftMo = (m,d) => { const[y,mo]=m.split('-').map(Number); const dt=new Date(y,mo-1+d,1); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`; };
+const uid   = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const R$    = v=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(v||0);
+const fmtD  = d=>d?new Date(d+'T12:00:00').toLocaleDateString('pt-BR'):'—';
+const today = ()=>new Date().toISOString().slice(0,10);
+const moLabel= m=>{if(!m)return'';const[y,mo]=m.split('-');return MO_SH[+mo-1]+'/'+y;};
+const moName = m=>{if(!m)return'';const[y,mo]=m.split('-');return MO_PT[+mo-1]+' '+y;};
+const esc    = s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const shiftMo= (m,d)=>{const[y,mo]=m.split('-').map(Number);const dt=new Date(y,mo-1+d,1);return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}`;};
+const isMob  = ()=>window.innerWidth<768;
 
 // ── Toast ────────────────────────────────────────────────────────────────────
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 3000);
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ── Sidebar mobile ───────────────────────────────────────────────────────────
+function openSidebar(){
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('mob-overlay').classList.add('show');
+}
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('mob-overlay').classList.remove('show');
 }
 
 // ── Badges ───────────────────────────────────────────────────────────────────
-function updateBadges() {
-  const nl = D.leads.filter(l=>l.data?.slice(0,7)===curMo).length;
-  const nv = D.vendas.filter(v=>v.data?.slice(0,7)===curMo).length;
-  const bl = document.getElementById('bl'), bv = document.getElementById('bv');
-  if(bl){bl.textContent=nl; bl.classList.toggle('hidden',!nl);}
-  if(bv){bv.textContent=nv; bv.classList.toggle('hidden',!nv);}
+function updateBadges(){
+  const nl=D.leads.filter(l=>l.data?.slice(0,7)===curMo).length;
+  const nv=D.vendas.filter(v=>v.data?.slice(0,7)===curMo).length;
+  const bl=document.getElementById('bl'),bv=document.getElementById('bv');
+  if(bl){bl.textContent=nl;bl.classList.toggle('hidden',!nl);}
+  if(bv){bv.textContent=nv;bv.classList.toggle('hidden',!nv);}
 }
 
-// ── Local Storage ────────────────────────────────────────────────────────────
-function localSave() {
-  localStorage.setItem(LSK, JSON.stringify(D));
-  updateBadges();
+// ── Mobile bottom nav active ──────────────────────────────────────────────────
+function updateMobNav(page){
+  document.querySelectorAll('.mn[data-page]').forEach(b=>{
+    b.classList.toggle('mna',b.dataset.page===page);
+  });
 }
-function localLoad() {
-  try { const s=localStorage.getItem(LSK); if(s) D={...D,...JSON.parse(s)}; } catch(e){}
-}
+
+// ── Persistence ──────────────────────────────────────────────────────────────
+function localSave(){localStorage.setItem(LSK,JSON.stringify(D));updateBadges();}
+function localLoad(){try{const s=localStorage.getItem(LSK);if(s)D={...D,...JSON.parse(s)};}catch(e){}}
+function loadFBConfig(){try{return JSON.parse(localStorage.getItem(FBK)||'null');}catch(e){return null;}}
+function saveFBConfig(cfg){localStorage.setItem(FBK,JSON.stringify(cfg));}
 
 // ── Firebase ─────────────────────────────────────────────────────────────────
-function loadFBConfig() { try{ return JSON.parse(localStorage.getItem(FBK)||'null'); }catch(e){return null;} }
-function saveFBConfig(cfg) { localStorage.setItem(FBK, JSON.stringify(cfg)); }
-
-function initFirebase(cfg) {
-  try {
-    if (firebase.apps.length) firebase.apps[0].delete();
-    firebase.initializeApp(cfg);
-    db = firebase.firestore();
-    setupFBListeners();
-    updateFBStatus(true);
-    toast('🔥 Firebase conectado! Sincronizando...');
-    return true;
-  } catch(e) {
-    console.error('Firebase error:', e);
-    toast('❌ Erro ao conectar: ' + e.message);
-    db = null;
-    updateFBStatus(false);
-    return false;
-  }
-}
-
-function updateFBStatus(on) {
-  const el = document.getElementById('fb-status');
-  if(!el) return;
-  el.className = 'fb-badge ' + (on?'fb-on':'fb-off');
-  el.innerHTML = `<i class="fas fa-circle text-[8px]"></i>${on?'Online':'Local'}`;
-}
-
-function setupFBListeners() {
-  unsubs.forEach(u => u());
-  unsubs = [];
-  const cols = ['leads','vendas','gastos'];
-  cols.forEach(col => {
-    const u = db.collection(col).onSnapshot(snap => {
-      D[col] = snap.docs.map(d => ({...d.data(), id: d.id}));
-      scheduleRefresh();
-    }, err => console.error(col, err));
-    unsubs.push(u);
+function updateFBStatus(on){
+  document.querySelectorAll('#fb-status').forEach(el=>{
+    el.className='fb-badge '+(on?'fb-on':'fb-off');
+    el.innerHTML=`<i class="fas fa-circle" style="font-size:7px"></i>${on?'Online':'Local'}`;
   });
-  unsubs.push(db.collection('metas').onSnapshot(snap => {
-    D.metas = {};
-    snap.docs.forEach(d => { D.metas[d.id] = d.data(); });
-    scheduleRefresh();
-  }));
-  unsubs.push(db.collection('config').doc('socios').onSnapshot(doc => {
-    if(doc.exists) D.socios = doc.data().lista || D.socios;
-    scheduleRefresh();
-  }));
 }
-
-function scheduleRefresh() {
-  clearTimeout(refreshTimer);
-  refreshTimer = setTimeout(() => { go(curPage); updateBadges(); }, 250);
+function initFirebase(cfg){
+  try{
+    if(firebase.apps.length)firebase.apps[0].delete();
+    firebase.initializeApp(cfg);db=firebase.firestore();
+    setupFBListeners();updateFBStatus(true);
+    toast('🔥 Firebase conectado!');return true;
+  }catch(e){toast('❌ Erro: '+e.message);db=null;updateFBStatus(false);return false;}
 }
-
-// ── Write helpers ─────────────────────────────────────────────────────────────
-async function dbSet(col, id, data) {
-  if(db) { await db.collection(col).doc(id).set(data); }
-  else { localSave(); }
+function setupFBListeners(){
+  unsubs.forEach(u=>u());unsubs=[];
+  ['leads','vendas','gastos'].forEach(col=>{
+    unsubs.push(db.collection(col).onSnapshot(snap=>{D[col]=snap.docs.map(d=>({...d.data(),id:d.id}));scheduleRefresh();}));
+  });
+  unsubs.push(db.collection('metas').onSnapshot(snap=>{D.metas={};snap.docs.forEach(d=>{D.metas[d.id]=d.data();});scheduleRefresh();}));
+  unsubs.push(db.collection('config').doc('socios').onSnapshot(doc=>{if(doc.exists)D.socios=doc.data().lista||D.socios;scheduleRefresh();}));
 }
-async function dbDel(col, id) {
-  if(db) { await db.collection(col).doc(id).delete(); }
-  else { localSave(); }
-}
-async function dbSetConfig(key, data) {
-  if(db) { await db.collection('config').doc(key).set(data); }
-  else { localSave(); }
-}
+function scheduleRefresh(){clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>{go(curPage);updateBadges();},250);}
+async function dbSet(col,id,data){if(db)await db.collection(col).doc(id).set(data);else localSave();}
+async function dbDel(col,id){if(db)await db.collection(col).doc(id).delete();else localSave();}
+async function dbSetConfig(key,data){if(db)await db.collection('config').doc(key).set(data);else localSave();}
 
 // ── Export / Import ───────────────────────────────────────────────────────────
-function doExport() {
-  const blob = new Blob([JSON.stringify(D,null,2)],{type:'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `kodaforge-${today()}.json`;
-  a.click(); URL.revokeObjectURL(a.href);
+function doExport(){
+  const blob=new Blob([JSON.stringify(D,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`kodaforge-${today()}.json`;a.click();URL.revokeObjectURL(a.href);
   toast('✅ Dados exportados!');
 }
-function doImport() { document.getElementById('impf').click(); }
-
-document.getElementById('impf').addEventListener('change', e => {
-  const f = e.target.files[0]; if(!f) return;
-  const r = new FileReader();
-  r.onload = async ev => {
-    try {
-      const imp = JSON.parse(ev.target.result);
-      if(!confirm('Substituir todos os dados pelos do arquivo?')) return;
-      if(db) {
-        const cols = ['leads','vendas','gastos'];
-        for(const col of cols) {
-          for(const item of (imp[col]||[])) await db.collection(col).doc(item.id).set(item);
-          if(imp.metas) for(const [k,v] of Object.entries(imp.metas)) await db.collection('metas').doc(k).set(v);
-          if(imp.socios) await dbSetConfig('socios',{lista:imp.socios});
-        }
-      } else { D={...D,...imp}; localSave(); go(curPage); }
+function doImport(){document.getElementById('impf').click();}
+document.getElementById('impf').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=async ev=>{
+    try{
+      const imp=JSON.parse(ev.target.result);
+      if(!confirm('Substituir todos os dados pelos do arquivo?'))return;
+      if(db){
+        for(const col of['leads','vendas','gastos'])for(const item of(imp[col]||[]))await db.collection(col).doc(item.id).set(item);
+        if(imp.metas)for(const[k,v]of Object.entries(imp.metas))await db.collection('metas').doc(k).set(v);
+        if(imp.socios)await dbSetConfig('socios',{lista:imp.socios});
+      }else{D={...D,...imp};localSave();go(curPage);}
       toast('✅ Importado!');
-    } catch(err) { alert('Arquivo inválido.'); }
-  };
-  r.readAsText(f); e.target.value='';
+    }catch(err){alert('Arquivo inválido.');}
+  };r.readAsText(f);e.target.value='';
 });
 
 // ── Navigation ────────────────────────────────────────────────────────────────
-const TITLES = {dashboard:'Dashboard',leads:'Leads',vendas:'Vendas',gastos:'Gastos',metas:'Metas',relatorios:'Relatórios',config:'Configurações'};
+const TITLES={dashboard:'Dashboard',leads:'Leads',vendas:'Vendas',gastos:'Gastos',metas:'Metas',relatorios:'Relatórios',config:'Configurações'};
 
-function go(page) {
-  curPage = page;
-  document.querySelectorAll('[data-action="nav"]').forEach(b => {
-    b.classList.toggle('na', b.dataset.page === page);
-  });
-  document.getElementById('ptitle').textContent = TITLES[page] || page;
-  Object.values(CH).forEach(c => { try{c.destroy();}catch(e){} });
-  CH = {};
-  const mc = document.getElementById('mc'); mc.innerHTML = '';
+function go(page){
+  curPage=page;
+  document.querySelectorAll('[data-action="nav"]').forEach(b=>b.classList.toggle('na',b.dataset.page===page));
+  document.getElementById('ptitle').textContent=TITLES[page]||page;
+  updateMobNav(page);
+  Object.values(CH).forEach(c=>{try{c.destroy();}catch(e){}});CH={};
+  const mc=document.getElementById('mc');mc.innerHTML='';
   ({dashboard:renderDash,leads:renderLeads,vendas:renderVendas,gastos:renderGastos,
     metas:renderMetas,relatorios:renderRel,config:renderConfig}[page]||renderDash)(mc);
+  if(isMob())closeSidebar();
 }
 
 // ── Metrics ───────────────────────────────────────────────────────────────────
-function metrics(m) {
-  const leads  = D.leads.filter(l=>l.data?.slice(0,7)===m);
-  const vendas = D.vendas.filter(v=>v.data?.slice(0,7)===m&&v.status!=='Cancelada');
-  const gastos = D.gastos.filter(g=>g.data?.slice(0,7)===m);
-  const bruto  = vendas.reduce((s,v)=>s+(+v.valor||0),0);
-  const tG     = gastos.reduce((s,g)=>s+(+g.valor||0),0);
-  const meta   = D.metas[m]||{};
-  return {leads:{n:leads.length,meta:meta.leads||0}, vendas:{n:vendas.length,meta:meta.vendas||0},
-    bruto, tG, liquido:bruto-tG, ticket:vendas.length?bruto/vendas.length:0,
-    conv:leads.length?(leads.filter(l=>l.status==='Convertido').length/leads.length*100):0, meta};
+function metrics(m){
+  const leads=D.leads.filter(l=>l.data?.slice(0,7)===m);
+  const vendas=D.vendas.filter(v=>v.data?.slice(0,7)===m&&v.status!=='Cancelada');
+  const gastos=D.gastos.filter(g=>g.data?.slice(0,7)===m);
+  const bruto=vendas.reduce((s,v)=>s+(+v.valor||0),0);
+  const tG=gastos.reduce((s,g)=>s+(+g.valor||0),0);
+  const meta=D.metas[m]||{};
+  return{leads:{n:leads.length,meta:meta.leads||0},vendas:{n:vendas.length,meta:meta.vendas||0},
+    bruto,tG,liquido:bruto-tG,ticket:vendas.length?bruto/vendas.length:0,
+    conv:leads.length?(leads.filter(l=>l.status==='Convertido').length/leads.length*100):0,meta};
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function renderDash(c) {
-  const m = metrics(curMo);
-  const fp = m.meta.faturamento>0 ? Math.min(m.bruto/m.meta.faturamento*100,100) : 0;
-  const lp = m.meta.leads>0 ? Math.min(m.leads.n/m.meta.leads*100,100) : 0;
-  const vp = m.meta.vendas>0 ? Math.min(m.vendas.n/m.meta.vendas*100,100) : 0;
-  const gp = m.meta.gastos_max>0 ? Math.min(m.tG/m.meta.gastos_max*100,100) : 0;
+function renderDash(c){
+  const m=metrics(curMo);
+  const fp=m.meta.faturamento>0?Math.min(m.bruto/m.meta.faturamento*100,100):0;
+  const lp=m.meta.leads>0?Math.min(m.leads.n/m.meta.leads*100,100):0;
+  const vp=m.meta.vendas>0?Math.min(m.vendas.n/m.meta.vendas*100,100):0;
+  const gp=m.meta.gastos_max>0?Math.min(m.tG/m.meta.gastos_max*100,100):0;
+  const prg=(pct,color)=>`<div class="pb mt-1.5"><div class="pf ${color}" style="width:${pct}%"></div></div><div class="text-right text-xs mt-0.5 text-slate-400">${pct.toFixed(0)}%</div>`;
 
-  const prg = (pct,color) => `<div class="pb mt-2"><div class="pf ${color}" style="width:${pct}%"></div></div><div class="text-right text-xs mt-0.5 text-slate-400">${pct.toFixed(0)}%</div>`;
-
-  c.innerHTML = `
-  <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
-    <div><h2 class="text-lg font-bold text-slate-800">Visão Geral</h2><p class="text-slate-500 text-sm">Resumo mensal</p></div>
-    <div class="flex items-center gap-2">
-      <button data-action="prev-month" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center cursor-pointer"><i class="fas fa-chevron-left text-xs"></i></button>
-      <div class="bg-white border border-slate-200 rounded-lg px-4 py-1.5 text-sm font-semibold text-slate-700 min-w-[140px] text-center">${moName(curMo)}</div>
-      <button data-action="next-month" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center cursor-pointer"><i class="fas fa-chevron-right text-xs"></i></button>
+  c.innerHTML=`
+  <!-- Month nav -->
+  <div class="flex items-center justify-between mb-4">
+    <div>
+      <h2 class="text-base font-bold text-slate-800">Visão Geral</h2>
+      <p class="text-slate-400 text-xs">Resumo mensal</p>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <button data-action="prev-month" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 flex items-center justify-center cursor-pointer"><i class="fas fa-chevron-left text-xs"></i></button>
+      <div class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700 min-w-[110px] text-center">${moName(curMo)}</div>
+      <button data-action="next-month" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 flex items-center justify-center cursor-pointer"><i class="fas fa-chevron-right text-xs"></i></button>
     </div>
   </div>
 
-  <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-    <div class="card kpi p-4"><div class="flex items-start justify-between"><div><p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Fat. Bruto</p><p class="text-xl font-bold text-indigo-600 mt-1">${R$(m.bruto)}</p>${m.meta.faturamento?`<div class="text-xs text-slate-400 mt-0.5">Meta ${R$(m.meta.faturamento)}</div>${prg(fp,'bg-indigo-500')}`:'<div class="text-xs text-slate-400 mt-1">Sem meta definida</div>'}</div><div class="w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center ml-2"><i class="fas fa-dollar-sign text-indigo-600"></i></div></div></div>
-    <div class="card kpi p-4"><div class="flex items-start justify-between"><div><p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Fat. Líquido</p><p class="text-xl font-bold mt-1 ${m.liquido>=0?'text-green-600':'text-red-600'}">${R$(m.liquido)}</p><div class="text-xs text-slate-400 mt-1">Bruto − Gastos</div></div><div class="w-9 h-9 ${m.liquido>=0?'bg-green-50':'bg-red-50'} rounded-xl flex items-center justify-center ml-2"><i class="fas fa-coins ${m.liquido>=0?'text-green-600':'text-red-600'}"></i></div></div></div>
-    <div class="card kpi p-4"><div class="flex items-start justify-between"><div><p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Gastos</p><p class="text-xl font-bold text-amber-500 mt-1">${R$(m.tG)}</p>${m.meta.gastos_max?`<div class="text-xs text-slate-400 mt-0.5">Limite ${R$(m.meta.gastos_max)}</div>${prg(gp,gp>=100?'bg-red-500':'bg-amber-400')}`:'<div class="text-xs text-slate-400 mt-1">Sem limite definido</div>'}</div><div class="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center ml-2"><i class="fas fa-receipt text-amber-500"></i></div></div></div>
-    <div class="card kpi p-4"><div class="flex items-start justify-between"><div><p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Leads</p><p class="text-xl font-bold text-violet-600 mt-1">${m.leads.n}</p>${m.meta.leads?`<div class="text-xs text-slate-400 mt-0.5">Meta ${m.meta.leads}</div>${prg(lp,'bg-violet-500')}`:'<div class="text-xs text-slate-400 mt-1">Sem meta definida</div>'}</div><div class="w-9 h-9 bg-violet-50 rounded-xl flex items-center justify-center ml-2"><i class="fas fa-user-plus text-violet-600"></i></div></div></div>
-    <div class="card kpi p-4"><div class="flex items-start justify-between"><div><p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Vendas</p><p class="text-xl font-bold text-sky-600 mt-1">${m.vendas.n}</p>${m.meta.vendas?`<div class="text-xs text-slate-400 mt-0.5">Meta ${m.meta.vendas}</div>${prg(vp,'bg-sky-500')}`:'<div class="text-xs text-slate-400 mt-1">Sem meta definida</div>'}</div><div class="w-9 h-9 bg-sky-50 rounded-xl flex items-center justify-center ml-2"><i class="fas fa-handshake text-sky-600"></i></div></div></div>
-    <div class="card kpi p-4"><div class="flex items-start justify-between"><div><p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Ticket Médio</p><p class="text-xl font-bold text-pink-600 mt-1">${R$(m.ticket)}</p><div class="text-xs text-slate-400 mt-1">Conversão: ${m.conv.toFixed(1)}%</div></div><div class="w-9 h-9 bg-pink-50 rounded-xl flex items-center justify-center ml-2"><i class="fas fa-tag text-pink-600"></i></div></div></div>
+  <!-- KPI grid -->
+  <div class="grid grid-cols-2 gap-2.5 mb-3">
+    ${mkpi('Fat. Bruto',R$(m.bruto),'fa-dollar-sign','text-indigo-600','bg-indigo-50',m.meta.faturamento?prg(fp,'bg-indigo-500'):'')}
+    ${mkpi('Fat. Líquido',R$(m.liquido),'fa-coins',m.liquido>=0?'text-green-600':'text-red-600',m.liquido>=0?'bg-green-50':'bg-red-50','<p class="text-xs text-slate-400 mt-1">Bruto−Gastos</p>')}
+    ${mkpi('Gastos',R$(m.tG),'fa-receipt','text-amber-500','bg-amber-50',m.meta.gastos_max?prg(gp,gp>=100?'bg-red-500':'bg-amber-400'):'')}
+    ${mkpi('Ticket Médio',R$(m.ticket),'fa-tag','text-pink-600','bg-pink-50',`<p class="text-xs text-slate-400 mt-1">Conv. ${m.conv.toFixed(1)}%</p>`)}
+    ${mkpi('Leads',m.leads.n,'fa-user-plus','text-violet-600','bg-violet-50',m.meta.leads?prg(lp,'bg-violet-500'):'')}
+    ${mkpi('Vendas',m.vendas.n,'fa-handshake','text-sky-600','bg-sky-50',m.meta.vendas?prg(vp,'bg-sky-500'):'')}
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
-    <div class="card p-5 lg:col-span-2">
-      <h3 class="font-semibold text-slate-700 text-sm mb-3">Faturamento — Últimos 6 Meses</h3>
-      <div style="height:200px"><canvas id="ch-fat"></canvas></div>
+  <!-- Charts -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5 mb-2.5">
+    <div class="card p-4 md:col-span-2">
+      <h3 class="font-semibold text-slate-700 text-sm mb-3">Faturamento — 6 meses</h3>
+      <div style="height:180px"><canvas id="ch-fat"></canvas></div>
     </div>
-    <div class="card p-5">
+    <div class="card p-4">
       <h3 class="font-semibold text-slate-700 text-sm mb-3">Leads por Status</h3>
-      <div id="ch-leads-wrap" style="height:200px"><canvas id="ch-leads"></canvas></div>
+      <div id="ch-leads-wrap" style="height:180px"><canvas id="ch-leads"></canvas></div>
     </div>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+  <!-- Recent -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
     <div class="card p-4">
       <div class="flex justify-between items-center mb-3">
         <h3 class="font-semibold text-slate-700 text-sm">Últimos Leads</h3>
-        <button data-action="nav" data-page="leads" class="text-indigo-600 text-xs hover:underline cursor-pointer bg-transparent border-0">Ver todos →</button>
+        <button data-action="nav" data-page="leads" class="text-indigo-600 text-xs bg-transparent border-0 cursor-pointer">Ver todos →</button>
       </div>
-      ${recentList(D.leads,'nome','fonte','leadBadge','status')}
+      ${recentLeads()}
     </div>
     <div class="card p-4">
       <div class="flex justify-between items-center mb-3">
         <h3 class="font-semibold text-slate-700 text-sm">Últimas Vendas</h3>
-        <button data-action="nav" data-page="vendas" class="text-indigo-600 text-xs hover:underline cursor-pointer bg-transparent border-0">Ver todas →</button>
+        <button data-action="nav" data-page="vendas" class="text-indigo-600 text-xs bg-transparent border-0 cursor-pointer">Ver todas →</button>
       </div>
       ${recentVendas()}
     </div>
   </div>`;
-  setTimeout(()=>{ initFatChart(); initLeadsChart(); }, 40);
+  setTimeout(()=>{initFatChart();initLeadsChart();},40);
 }
 
-function recentList(arr, nameF, subF, badgeFn, statusF) {
-  const rows = [...arr].sort((a,b)=>(b.data||'')>(a.data||'')?1:-1).slice(0,5);
-  if(!rows.length) return `<div class="em py-6"><i class="fas fa-inbox"></i><p class="text-sm">Nenhum registro ainda</p></div>`;
-  return rows.map(r=>`<div class="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
-    <div><p class="font-medium text-sm text-slate-700">${esc(r[nameF]||'')}</p><p class="text-xs text-slate-400">${esc(r[subF]||'—')} · ${fmtD(r.data)}</p></div>
-    <span class="badge ${window[badgeFn](r[statusF])}">${esc(r[statusF]||'—')}</span>
-  </div>`).join('');
-}
-function recentVendas() {
-  const rows = [...D.vendas].sort((a,b)=>(b.data||'')>(a.data||'')?1:-1).slice(0,5);
-  if(!rows.length) return `<div class="em py-6"><i class="fas fa-handshake"></i><p class="text-sm">Nenhuma venda ainda</p></div>`;
-  return rows.map(v=>`<div class="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
-    <div><p class="font-medium text-sm text-slate-700">${esc(v.cliente||'')}</p><p class="text-xs text-slate-400">${esc(v.responsavel||'—')} · ${fmtD(v.data)}</p></div>
-    <span class="font-semibold text-sm text-green-600">${R$(v.valor)}</span>
-  </div>`).join('');
+function mkpi(title,val,ico,color,bg,extra=''){
+  return `<div class="card kpi p-3">
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wide truncate">${title}</p>
+        <p class="text-lg font-bold mt-0.5 ${color} truncate">${val}</p>
+        ${extra}
+      </div>
+      <div class="w-8 h-8 ${bg} rounded-xl flex items-center justify-center flex-shrink-0">
+        <i class="fas ${ico} text-sm ${color}"></i>
+      </div>
+    </div>
+  </div>`;
 }
 
 function leadBadge(s){return{Novo:'bn',Contatado:'bc',Qualificado:'bq','Proposta Enviada':'bpr',Convertido:'bco',Perdido:'bpe'}[s]||'bn';}
-window.leadBadge = leadBadge;
+window.leadBadge=leadBadge;
 function vendaBadge(s){return{Confirmada:'bcf',Pendente:'bpd',Cancelada:'bca'}[s]||'bi';}
 
-function last6() { const ms=[]; for(let i=5;i>=0;i--) ms.push(shiftMo(curMo,-i)); return ms; }
-function initFatChart() {
-  const ctx=document.getElementById('ch-fat'); if(!ctx) return;
+function recentLeads(){
+  const rows=[...D.leads].sort((a,b)=>(b.data||'')>(a.data||'')?1:-1).slice(0,5);
+  if(!rows.length)return`<div class="em py-6"><i class="fas fa-user-plus"></i><p class="text-sm">Nenhum lead ainda</p></div>`;
+  return rows.map(l=>`<div class="flex justify-between items-center py-2.5 border-b border-slate-100 last:border-0">
+    <div class="min-w-0 mr-2"><p class="font-medium text-sm text-slate-700 truncate">${esc(l.nome||'')}</p><p class="text-xs text-slate-400 truncate">${esc(l.fonte||'—')} · ${fmtD(l.data)}</p></div>
+    <span class="badge ${leadBadge(l.status)} flex-shrink-0">${esc(l.status||'Novo')}</span>
+  </div>`).join('');
+}
+function recentVendas(){
+  const rows=[...D.vendas].sort((a,b)=>(b.data||'')>(a.data||'')?1:-1).slice(0,5);
+  if(!rows.length)return`<div class="em py-6"><i class="fas fa-handshake"></i><p class="text-sm">Nenhuma venda ainda</p></div>`;
+  return rows.map(v=>`<div class="flex justify-between items-center py-2.5 border-b border-slate-100 last:border-0">
+    <div class="min-w-0 mr-2"><p class="font-medium text-sm text-slate-700 truncate">${esc(v.cliente||'')}</p><p class="text-xs text-slate-400 truncate">${esc(v.responsavel||'—')} · ${fmtD(v.data)}</p></div>
+    <span class="font-bold text-sm text-green-600 flex-shrink-0">${R$(v.valor)}</span>
+  </div>`).join('');
+}
+
+function last6(){const ms=[];for(let i=5;i>=0;i--)ms.push(shiftMo(curMo,-i));return ms;}
+function initFatChart(){
+  const ctx=document.getElementById('ch-fat');if(!ctx)return;
   const ms=last6();
   const b=ms.map(m=>D.vendas.filter(v=>v.data?.slice(0,7)===m&&v.status!=='Cancelada').reduce((s,v)=>s+(+v.valor||0),0));
   const g=ms.map(m=>D.gastos.filter(v=>v.data?.slice(0,7)===m).reduce((s,v)=>s+(+v.valor||0),0));
-  const l=b.map((v,i)=>v-g[i]);
   CH.fat=new Chart(ctx,{type:'bar',data:{labels:ms.map(moLabel),datasets:[
-    {label:'Bruto',data:b,backgroundColor:'rgba(99,102,241,.7)',borderRadius:5},
-    {label:'Líquido',data:l,backgroundColor:'rgba(34,197,94,.7)',borderRadius:5},
-    {label:'Gastos',data:g,backgroundColor:'rgba(251,191,36,.7)',borderRadius:5},
+    {label:'Bruto',data:b,backgroundColor:'rgba(99,102,241,.7)',borderRadius:4},
+    {label:'Líquido',data:b.map((v,i)=>v-g[i]),backgroundColor:'rgba(34,197,94,.7)',borderRadius:4},
+    {label:'Gastos',data:g,backgroundColor:'rgba(251,191,36,.7)',borderRadius:4},
   ]},options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}},
-    scales:{y:{ticks:{callback:v=>'R$'+(v/1000).toFixed(0)+'k',font:{size:10}},grid:{color:'#f1f5f9'}},x:{ticks:{font:{size:10}},grid:{display:false}}}}});
+    plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{size:9},padding:8}}},
+    scales:{y:{ticks:{callback:v=>'R$'+(v/1000).toFixed(0)+'k',font:{size:9}},grid:{color:'#f1f5f9'}},x:{ticks:{font:{size:9}},grid:{display:false}}}}});
 }
-function initLeadsChart() {
-  const ctx=document.getElementById('ch-leads'); if(!ctx) return;
+function initLeadsChart(){
+  const ctx=document.getElementById('ch-leads');if(!ctx)return;
   const counts=LEAD_ST.map(s=>D.leads.filter(l=>l.status===s).length);
-  if(!counts.some(Boolean)){
-    document.getElementById('ch-leads-wrap').innerHTML='<div class="em"><i class="fas fa-chart-pie"></i><p class="text-sm">Sem leads</p></div>'; return;
-  }
-  CH.leads=new Chart(ctx,{type:'doughnut',data:{labels:LEAD_ST,datasets:[{data:counts,backgroundColor:['#3b82f6','#f59e0b','#8b5cf6','#ec4899','#22c55e','#ef4444'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}}}}});
+  if(!counts.some(Boolean)){document.getElementById('ch-leads-wrap').innerHTML='<div class="em"><i class="fas fa-chart-pie"></i><p class="text-sm">Sem leads</p></div>';return;}
+  CH.leads=new Chart(ctx,{type:'doughnut',data:{labels:LEAD_ST,datasets:[{data:counts,backgroundColor:['#3b82f6','#f59e0b','#8b5cf6','#ec4899','#22c55e','#ef4444'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:8,font:{size:9},padding:6}}}}});
 }
 
 // ── LEADS ─────────────────────────────────────────────────────────────────────
-function renderLeads(c) {
-  c.innerHTML = `
-  <div class="flex flex-wrap justify-between items-center gap-3 mb-5">
-    <div><h2 class="text-lg font-bold text-slate-800">Leads</h2><p class="text-slate-500 text-sm">${D.leads.length} cadastrado(s)</p></div>
-    <button data-action="new-lead" class="btn bp"><i class="fas fa-plus"></i> Novo Lead</button>
+function renderLeads(c){
+  c.innerHTML=`
+  <div class="flex justify-between items-center gap-3 mb-4">
+    <div><h2 class="text-base font-bold text-slate-800">Leads</h2><p class="text-slate-400 text-xs">${D.leads.length} cadastrado(s)</p></div>
+    <button data-action="new-lead" class="btn bp" style="padding:8px 14px;font-size:13px"><i class="fas fa-plus"></i> Novo Lead</button>
   </div>
-  <div class="card p-4 mb-4">
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+  <div class="card p-3 mb-3">
+    <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
       <input class="fi" placeholder="Buscar nome, e-mail..." id="lsearch" value="${esc(lF.s)}">
-      <select class="fi" id="lstatus">
-        <option value="">Todos os status</option>
-        ${LEAD_ST.map(s=>`<option value="${s}" ${lF.st===s?'selected':''}>${esc(s)}</option>`).join('')}
-      </select>
-      <select class="fi" id="lresp">
-        <option value="">Todos os responsáveis</option>
-        ${D.socios.map(s=>`<option value="${s}" ${lF.resp===s?'selected':''}>${esc(s)}</option>`).join('')}
-      </select>
+      <select class="fi" id="lstatus"><option value="">Todos os status</option>${LEAD_ST.map(s=>`<option value="${s}" ${lF.st===s?'selected':''}>${esc(s)}</option>`).join('')}</select>
+      <select class="fi" id="lresp"><option value="">Todos os responsáveis</option>${D.socios.map(s=>`<option value="${s}" ${lF.resp===s?'selected':''}>${esc(s)}</option>`).join('')}</select>
     </div>
   </div>
   <div class="card overflow-hidden"><div id="ltbl">${buildLeadsTable()}</div></div>`;
-  document.getElementById('lsearch').addEventListener('input', e=>{lF.s=e.target.value; refLeads();});
-  document.getElementById('lstatus').addEventListener('change', e=>{lF.st=e.target.value; refLeads();});
-  document.getElementById('lresp').addEventListener('change', e=>{lF.resp=e.target.value; refLeads();});
+  document.getElementById('lsearch').addEventListener('input',e=>{lF.s=e.target.value;refLeads();});
+  document.getElementById('lstatus').addEventListener('change',e=>{lF.st=e.target.value;refLeads();});
+  document.getElementById('lresp').addEventListener('change',e=>{lF.resp=e.target.value;refLeads();});
 }
 function filtLeads(){
   return D.leads.filter(l=>{
@@ -435,91 +497,108 @@ function filtLeads(){
       &&(!lF.st||l.status===lF.st)&&(!lF.resp||l.responsavel===lF.resp);
   }).sort((a,b)=>(b.data||'')>(a.data||'')?1:-1);
 }
-function refLeads(){const el=document.getElementById('ltbl'); if(el) el.innerHTML=buildLeadsTable();}
+function refLeads(){const el=document.getElementById('ltbl');if(el)el.innerHTML=buildLeadsTable();}
 function buildLeadsTable(){
   const rows=filtLeads();
-  if(!rows.length) return `<div class="em"><i class="fas fa-user-slash"></i><p>Nenhum lead encontrado</p></div>`;
-  return `<div class="overflow-x-auto"><table>
+  if(!rows.length)return`<div class="em"><i class="fas fa-user-slash"></i><p>Nenhum lead encontrado</p></div>`;
+  // Mobile cards
+  const mob=`<div class="mob-card divide-y divide-slate-100">${rows.map(l=>`
+    <div class="p-3">
+      <div class="flex justify-between items-start mb-1.5">
+        <div><p class="font-semibold text-sm text-slate-800">${esc(l.nome)}</p><p class="text-xs text-slate-400">${esc(l.contato||'—')}</p></div>
+        <span class="badge ${leadBadge(l.status)} ml-2">${esc(l.status||'Novo')}</span>
+      </div>
+      <div class="flex items-center justify-between mt-2">
+        <div class="flex gap-3 text-xs text-slate-500">
+          <span><i class="fas fa-user w-3"></i> ${esc(l.responsavel||'—')}</span>
+          <span><i class="fas fa-calendar w-3"></i> ${fmtD(l.data)}</span>
+          ${l.valor_estimado?`<span class="text-green-600 font-medium">${R$(l.valor_estimado)}</span>`:''}
+        </div>
+        <div class="flex gap-1.5">
+          <button data-action="edit-lead" data-id="${l.id}" class="bsm be"><i class="fas fa-pen"></i></button>
+          <button data-action="del-lead" data-id="${l.id}" class="bsm bd"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    </div>`).join('')}</div>`;
+  // Desktop table
+  const desk=`<div class="desk-table overflow-x-auto"><table>
     <thead><tr><th>Nome</th><th>Contato</th><th>Fonte</th><th>Responsável</th><th>Valor Est.</th><th>Status</th><th>Data</th><th>Ações</th></tr></thead>
     <tbody>${rows.map(l=>`<tr>
-      <td class="font-medium text-slate-700">${esc(l.nome)}</td>
-      <td class="text-slate-500">${esc(l.contato||'—')}</td>
+      <td class="font-medium">${esc(l.nome)}</td><td class="text-slate-500">${esc(l.contato||'—')}</td>
       <td>${esc(l.fonte||'—')}</td><td>${esc(l.responsavel||'—')}</td>
       <td>${l.valor_estimado?R$(l.valor_estimado):'—'}</td>
       <td><span class="badge ${leadBadge(l.status)}">${esc(l.status||'Novo')}</span></td>
-      <td class="text-slate-500 whitespace-nowrap">${fmtD(l.data)}</td>
+      <td class="text-slate-500">${fmtD(l.data)}</td>
       <td><div class="flex gap-1.5">
         <button data-action="edit-lead" data-id="${l.id}" class="bsm be"><i class="fas fa-pen"></i></button>
         <button data-action="del-lead" data-id="${l.id}" class="bsm bd"><i class="fas fa-trash"></i></button>
       </div></td>
     </tr>`).join('')}</tbody>
   </table></div>`;
+  return mob+desk;
 }
-
-function openLeadModal(id=null) {
-  const l = id ? D.leads.find(x=>x.id===id) : null;
-  showModal(`<div class="p-6">
-    <div class="flex justify-between items-center mb-5">
-      <h2 class="text-base font-bold text-slate-800">${l?'Editar Lead':'Novo Lead'}</h2>
-      <button data-action="close-modal" class="text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer text-xl"><i class="fas fa-times"></i></button>
+function openLeadModal(id=null){
+  const l=id?D.leads.find(x=>x.id===id):null;
+  showModal(`<div class="p-5">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-base font-bold">${l?'Editar Lead':'Novo Lead'}</h2>
+      <button data-action="close-modal" class="text-slate-400 text-xl bg-transparent border-0 cursor-pointer w-8 h-8 flex items-center justify-center"><i class="fas fa-times"></i></button>
     </div>
     <form id="lead-form">
-      <div class="grid grid-cols-2 gap-3">
-        <div class="col-span-2"><label class="fl">Nome *</label><input name="nome" class="fi" required value="${esc(l?.nome||'')}"></div>
-        <div><label class="fl">Telefone/WhatsApp</label><input name="contato" class="fi" value="${esc(l?.contato||'')}"></div>
-        <div><label class="fl">E-mail</label><input name="email" type="email" class="fi" value="${esc(l?.email||'')}"></div>
-        <div><label class="fl">Fonte</label><select name="fonte" class="fi">${LEAD_FT.map(f=>`<option ${l?.fonte===f?'selected':''}>${esc(f)}</option>`).join('')}</select></div>
-        <div><label class="fl">Responsável</label><select name="resp" class="fi"><option value="">—</option>${D.socios.map(s=>`<option ${l?.responsavel===s?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
-        <div><label class="fl">Status</label><select name="status" class="fi">${LEAD_ST.map(s=>`<option ${(l?.status||'Novo')===s?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
-        <div><label class="fl">Valor Estimado (R$)</label><input name="valor" type="number" step="0.01" min="0" class="fi" value="${l?.valor_estimado||''}"></div>
+      <div class="space-y-3">
+        <div><label class="fl">Nome *</label><input name="nome" class="fi" required value="${esc(l?.nome||'')}" placeholder="Nome completo"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="fl">WhatsApp</label><input name="contato" class="fi" value="${esc(l?.contato||'')}" placeholder="(11) 99999-9999"></div>
+          <div><label class="fl">E-mail</label><input name="email" type="email" class="fi" value="${esc(l?.email||'')}" placeholder="email@..."></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="fl">Fonte</label><select name="fonte" class="fi">${LEAD_FT.map(f=>`<option ${l?.fonte===f?'selected':''}>${esc(f)}</option>`).join('')}</select></div>
+          <div><label class="fl">Responsável</label><select name="resp" class="fi"><option value="">—</option>${D.socios.map(s=>`<option ${l?.responsavel===s?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="fl">Status</label><select name="status" class="fi">${LEAD_ST.map(s=>`<option ${(l?.status||'Novo')===s?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
+          <div><label class="fl">Valor Est. (R$)</label><input name="valor" type="number" step="0.01" min="0" class="fi" value="${l?.valor_estimado||''}" placeholder="0,00"></div>
+        </div>
         <div><label class="fl">Data *</label><input name="data" type="date" class="fi" required value="${l?.data||today()}"></div>
-        <div class="col-span-2"><label class="fl">Notas</label><textarea name="notas" class="fi" rows="2">${esc(l?.notas||'')}</textarea></div>
+        <div><label class="fl">Notas</label><textarea name="notas" class="fi" rows="2" placeholder="Observações...">${esc(l?.notas||'')}</textarea></div>
       </div>
       <div class="flex gap-3 mt-4">
         <button type="button" data-action="close-modal" class="btn bs flex-1 justify-center">Cancelar</button>
-        <button type="submit" class="btn bp flex-1 justify-center">${l?'Salvar':'Adicionar Lead'}</button>
+        <button type="submit" class="btn bp flex-1 justify-center">${l?'Salvar':'Adicionar'}</button>
       </div>
     </form>
   </div>`);
-  document.getElementById('lead-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const f = e.target;
-    const obj = {id:id||uid(),nome:f.nome.value.trim(),contato:f.contato.value.trim(),email:f.email.value.trim(),
+  document.getElementById('lead-form').addEventListener('submit',async e=>{
+    e.preventDefault();const f=e.target;
+    const obj={id:id||uid(),nome:f.nome.value.trim(),contato:f.contato.value.trim(),email:f.email.value.trim(),
       fonte:f.fonte.value,responsavel:f.resp.value,status:f.status.value,
       valor_estimado:parseFloat(f.valor.value)||0,data:f.data.value,notas:f.notas.value.trim()};
     if(!db){if(id){const i=D.leads.findIndex(x=>x.id===id);if(i>=0)D.leads[i]=obj;}else D.leads.push(obj);}
     await dbSet('leads',obj.id,obj);
-    closeModal(); toast(id?'✅ Lead atualizado!':'✅ Lead adicionado!');
-    if(!db){go('leads');}
+    closeModal();toast(id?'✅ Lead atualizado!':'✅ Lead adicionado!');if(!db)go('leads');
   });
 }
-
-async function delLead(id) {
-  if(!confirm('Remover este lead?')) return;
-  if(!db) D.leads=D.leads.filter(l=>l.id!==id);
-  await dbDel('leads',id);
-  toast('🗑️ Lead removido.'); if(!db) go('leads');
-}
+async function delLead(id){if(!confirm('Remover este lead?'))return;if(!db)D.leads=D.leads.filter(l=>l.id!==id);await dbDel('leads',id);toast('🗑️ Removido.');if(!db)go('leads');}
 
 // ── VENDAS ────────────────────────────────────────────────────────────────────
-function renderVendas(c) {
-  const tot = D.vendas.filter(v=>v.data?.slice(0,7)===curMo&&v.status!=='Cancelada').reduce((s,v)=>s+(+v.valor||0),0);
-  c.innerHTML = `
-  <div class="flex flex-wrap justify-between items-center gap-3 mb-5">
-    <div><h2 class="text-lg font-bold text-slate-800">Vendas</h2><p class="text-slate-500 text-sm">${D.vendas.length} registrada(s) · Mês: <strong class="text-green-600">${R$(tot)}</strong></p></div>
-    <button data-action="new-venda" class="btn bp"><i class="fas fa-plus"></i> Nova Venda</button>
+function renderVendas(c){
+  const tot=D.vendas.filter(v=>v.data?.slice(0,7)===curMo&&v.status!=='Cancelada').reduce((s,v)=>s+(+v.valor||0),0);
+  c.innerHTML=`
+  <div class="flex justify-between items-center gap-3 mb-4">
+    <div><h2 class="text-base font-bold text-slate-800">Vendas</h2><p class="text-slate-400 text-xs">Mês: <strong class="text-green-600">${R$(tot)}</strong></p></div>
+    <button data-action="new-venda" class="btn bp" style="padding:8px 14px;font-size:13px"><i class="fas fa-plus"></i> Nova Venda</button>
   </div>
-  <div class="card p-4 mb-4">
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+  <div class="card p-3 mb-3">
+    <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
       <input class="fi" placeholder="Buscar cliente, produto..." id="vsearch" value="${esc(vF.s)}">
       <select class="fi" id="vstatus"><option value="">Todos os status</option>${VND_ST.map(s=>`<option value="${s}" ${vF.st===s?'selected':''}>${esc(s)}</option>`).join('')}</select>
       <select class="fi" id="vresp"><option value="">Todos os responsáveis</option>${D.socios.map(s=>`<option value="${s}" ${vF.resp===s?'selected':''}>${esc(s)}</option>`).join('')}</select>
     </div>
   </div>
   <div class="card overflow-hidden"><div id="vtbl">${buildVendasTable()}</div></div>`;
-  document.getElementById('vsearch').addEventListener('input', e=>{vF.s=e.target.value; refVendas();});
-  document.getElementById('vstatus').addEventListener('change', e=>{vF.st=e.target.value; refVendas();});
-  document.getElementById('vresp').addEventListener('change', e=>{vF.resp=e.target.value; refVendas();});
+  document.getElementById('vsearch').addEventListener('input',e=>{vF.s=e.target.value;refVendas();});
+  document.getElementById('vstatus').addEventListener('change',e=>{vF.st=e.target.value;refVendas();});
+  document.getElementById('vresp').addEventListener('change',e=>{vF.resp=e.target.value;refVendas();});
 }
 function filtVendas(){
   return D.vendas.filter(v=>{
@@ -528,98 +607,109 @@ function filtVendas(){
       &&(!vF.st||v.status===vF.st)&&(!vF.resp||v.responsavel===vF.resp);
   }).sort((a,b)=>(b.data||'')>(a.data||'')?1:-1);
 }
-function refVendas(){const el=document.getElementById('vtbl'); if(el) el.innerHTML=buildVendasTable();}
+function refVendas(){const el=document.getElementById('vtbl');if(el)el.innerHTML=buildVendasTable();}
 function buildVendasTable(){
   const rows=filtVendas();
-  if(!rows.length) return `<div class="em"><i class="fas fa-handshake"></i><p>Nenhuma venda encontrada</p></div>`;
-  return `<div class="overflow-x-auto"><table>
+  if(!rows.length)return`<div class="em"><i class="fas fa-handshake"></i><p>Nenhuma venda encontrada</p></div>`;
+  const mob=`<div class="mob-card divide-y divide-slate-100">${rows.map(v=>`
+    <div class="p-3">
+      <div class="flex justify-between items-start mb-1.5">
+        <div><p class="font-semibold text-sm text-slate-800">${esc(v.cliente)}</p><p class="text-xs text-slate-400">${esc(v.produto||'—')}</p></div>
+        <span class="font-bold text-sm text-green-600 ml-2">${R$(v.valor)}</span>
+      </div>
+      <div class="flex items-center justify-between mt-2">
+        <div class="flex gap-3 text-xs text-slate-500">
+          <span><i class="fas fa-user w-3"></i> ${esc(v.responsavel||'—')}</span>
+          <span class="badge ${vendaBadge(v.status)}">${esc(v.status)}</span>
+          <span>${fmtD(v.data)}</span>
+        </div>
+        <div class="flex gap-1.5">
+          <button data-action="edit-venda" data-id="${v.id}" class="bsm be"><i class="fas fa-pen"></i></button>
+          <button data-action="del-venda" data-id="${v.id}" class="bsm bd"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    </div>`).join('')}</div>`;
+  const desk=`<div class="desk-table overflow-x-auto"><table>
     <thead><tr><th>Cliente</th><th>Produto/Serviço</th><th>Valor</th><th>Pagamento</th><th>Responsável</th><th>Status</th><th>Data</th><th>Ações</th></tr></thead>
     <tbody>${rows.map(v=>`<tr>
-      <td class="font-medium text-slate-700">${esc(v.cliente)}</td>
-      <td class="text-slate-500">${esc(v.produto||'—')}</td>
-      <td class="font-semibold text-green-600">${R$(v.valor)}</td>
-      <td>${esc(v.pagamento||'—')}</td><td>${esc(v.responsavel||'—')}</td>
-      <td><span class="badge ${vendaBadge(v.status)}">${esc(v.status)}</span></td>
-      <td class="text-slate-500 whitespace-nowrap">${fmtD(v.data)}</td>
+      <td class="font-medium">${esc(v.cliente)}</td><td class="text-slate-500">${esc(v.produto||'—')}</td>
+      <td class="font-semibold text-green-600">${R$(v.valor)}</td><td>${esc(v.pagamento||'—')}</td>
+      <td>${esc(v.responsavel||'—')}</td><td><span class="badge ${vendaBadge(v.status)}">${esc(v.status)}</span></td>
+      <td class="text-slate-500">${fmtD(v.data)}</td>
       <td><div class="flex gap-1.5">
         <button data-action="edit-venda" data-id="${v.id}" class="bsm be"><i class="fas fa-pen"></i></button>
         <button data-action="del-venda" data-id="${v.id}" class="bsm bd"><i class="fas fa-trash"></i></button>
       </div></td>
     </tr>`).join('')}</tbody>
   </table></div>`;
+  return mob+desk;
 }
-
-function openVendaModal(id=null) {
-  const v = id ? D.vendas.find(x=>x.id===id) : null;
-  showModal(`<div class="p-6">
-    <div class="flex justify-between items-center mb-5">
-      <h2 class="text-base font-bold text-slate-800">${v?'Editar Venda':'Nova Venda'}</h2>
-      <button data-action="close-modal" class="text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer text-xl"><i class="fas fa-times"></i></button>
+function openVendaModal(id=null){
+  const v=id?D.vendas.find(x=>x.id===id):null;
+  showModal(`<div class="p-5">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-base font-bold">${v?'Editar Venda':'Nova Venda'}</h2>
+      <button data-action="close-modal" class="text-slate-400 text-xl bg-transparent border-0 cursor-pointer w-8 h-8 flex items-center justify-center"><i class="fas fa-times"></i></button>
     </div>
     <form id="venda-form">
-      <div class="grid grid-cols-2 gap-3">
-        <div class="col-span-2"><label class="fl">Cliente *</label><input name="cliente" class="fi" required value="${esc(v?.cliente||'')}"></div>
-        <div class="col-span-2"><label class="fl">Produto/Serviço</label><input name="produto" class="fi" value="${esc(v?.produto||'')}"></div>
-        <div><label class="fl">Valor (R$) *</label><input name="valor" type="number" step="0.01" min="0" class="fi" required value="${v?.valor||''}"></div>
-        <div><label class="fl">Forma de Pagamento</label><select name="pag" class="fi">${PAG.map(p=>`<option ${v?.pagamento===p?'selected':''}>${esc(p)}</option>`).join('')}</select></div>
-        <div><label class="fl">Responsável</label><select name="resp" class="fi"><option value="">—</option>${D.socios.map(s=>`<option ${v?.responsavel===s?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
-        <div><label class="fl">Status</label><select name="status" class="fi">${VND_ST.map(s=>`<option ${(v?.status||'Confirmada')===s?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
+      <div class="space-y-3">
+        <div><label class="fl">Cliente *</label><input name="cliente" class="fi" required value="${esc(v?.cliente||'')}" placeholder="Nome do cliente"></div>
+        <div><label class="fl">Produto/Serviço</label><input name="produto" class="fi" value="${esc(v?.produto||'')}" placeholder="Descrição"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="fl">Valor (R$) *</label><input name="valor" type="number" step="0.01" min="0" class="fi" required value="${v?.valor||''}" placeholder="0,00"></div>
+          <div><label class="fl">Pagamento</label><select name="pag" class="fi">${PAG.map(p=>`<option ${v?.pagamento===p?'selected':''}>${esc(p)}</option>`).join('')}</select></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="fl">Responsável</label><select name="resp" class="fi"><option value="">—</option>${D.socios.map(s=>`<option ${v?.responsavel===s?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
+          <div><label class="fl">Status</label><select name="status" class="fi">${VND_ST.map(s=>`<option ${(v?.status||'Confirmada')===s?'selected':''}>${esc(s)}</option>`).join('')}</select></div>
+        </div>
         <div><label class="fl">Data *</label><input name="data" type="date" class="fi" required value="${v?.data||today()}"></div>
-        <div><label class="fl">Notas</label><input name="notas" class="fi" value="${esc(v?.notas||'')}"></div>
       </div>
       <div class="flex gap-3 mt-4">
         <button type="button" data-action="close-modal" class="btn bs flex-1 justify-center">Cancelar</button>
-        <button type="submit" class="btn bp flex-1 justify-center">${v?'Salvar':'Registrar Venda'}</button>
+        <button type="submit" class="btn bp flex-1 justify-center">${v?'Salvar':'Registrar'}</button>
       </div>
     </form>
   </div>`);
-  document.getElementById('venda-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const f = e.target;
-    const obj = {id:id||uid(),cliente:f.cliente.value.trim(),produto:f.produto.value.trim(),
+  document.getElementById('venda-form').addEventListener('submit',async e=>{
+    e.preventDefault();const f=e.target;
+    const obj={id:id||uid(),cliente:f.cliente.value.trim(),produto:f.produto.value.trim(),
       valor:parseFloat(f.valor.value)||0,pagamento:f.pag.value,responsavel:f.resp.value,
-      status:f.status.value,data:f.data.value,notas:f.notas.value.trim()};
+      status:f.status.value,data:f.data.value};
     if(!db){if(id){const i=D.vendas.findIndex(x=>x.id===id);if(i>=0)D.vendas[i]=obj;}else D.vendas.push(obj);}
     await dbSet('vendas',obj.id,obj);
-    closeModal(); toast(id?'✅ Venda atualizada!':'✅ Venda registrada!');
-    if(!db) go('vendas');
+    closeModal();toast(id?'✅ Atualizado!':'✅ Venda registrada!');if(!db)go('vendas');
   });
 }
-
-async function delVenda(id) {
-  if(!confirm('Remover esta venda?')) return;
-  if(!db) D.vendas=D.vendas.filter(v=>v.id!==id);
-  await dbDel('vendas',id);
-  toast('🗑️ Venda removida.'); if(!db) go('vendas');
-}
+async function delVenda(id){if(!confirm('Remover esta venda?'))return;if(!db)D.vendas=D.vendas.filter(v=>v.id!==id);await dbDel('vendas',id);toast('🗑️ Removido.');if(!db)go('vendas');}
 
 // ── GASTOS ────────────────────────────────────────────────────────────────────
-function renderGastos(c) {
-  const tot = D.gastos.filter(g=>g.data?.slice(0,7)===curMo).reduce((s,g)=>s+(+g.valor||0),0);
-  const cats = GCAT.map(cat=>{
+function renderGastos(c){
+  const tot=D.gastos.filter(g=>g.data?.slice(0,7)===curMo).reduce((s,g)=>s+(+g.valor||0),0);
+  const cats=GCAT.map(cat=>{
     const t=D.gastos.filter(g=>g.categoria===cat&&g.data?.slice(0,7)===curMo).reduce((s,g)=>s+(+g.valor||0),0);
-    return t?`<div class="bg-slate-50 rounded-lg p-3"><p class="text-xs text-slate-500 truncate">${esc(cat)}</p><p class="font-bold text-sm text-red-600 mt-0.5">${R$(t)}</p></div>`:'';
-  }).filter(Boolean).join('') || `<p class="text-slate-400 text-sm col-span-4">Nenhum gasto em ${moName(curMo)}</p>`;
-  c.innerHTML = `
-  <div class="flex flex-wrap justify-between items-center gap-3 mb-5">
-    <div><h2 class="text-lg font-bold text-slate-800">Gastos</h2><p class="text-slate-500 text-sm">${D.gastos.length} registrado(s) · Mês: <strong class="text-red-600">${R$(tot)}</strong></p></div>
-    <button data-action="new-gasto" class="btn bp"><i class="fas fa-plus"></i> Novo Gasto</button>
+    return t?`<div class="bg-slate-50 rounded-lg p-2.5"><p class="text-xs text-slate-500 truncate">${esc(cat)}</p><p class="font-bold text-sm text-red-600">${R$(t)}</p></div>`:'';
+  }).filter(Boolean).join('')||`<p class="text-slate-400 text-xs col-span-4">Sem gastos em ${moName(curMo)}</p>`;
+  c.innerHTML=`
+  <div class="flex justify-between items-center gap-3 mb-4">
+    <div><h2 class="text-base font-bold text-slate-800">Gastos</h2><p class="text-slate-400 text-xs">Mês: <strong class="text-red-600">${R$(tot)}</strong></p></div>
+    <button data-action="new-gasto" class="btn bp" style="padding:8px 14px;font-size:13px"><i class="fas fa-plus"></i> Novo Gasto</button>
   </div>
-  <div class="card p-4 mb-4">
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+  <div class="card p-3 mb-3">
+    <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
       <input class="fi" placeholder="Buscar descrição..." id="gsearch" value="${esc(gF.s)}">
       <select class="fi" id="gcat"><option value="">Todas as categorias</option>${GCAT.map(c=>`<option value="${c}" ${gF.cat===c?'selected':''}>${esc(c)}</option>`).join('')}</select>
       <select class="fi" id="gtipo"><option value="">Todos os tipos</option><option value="Fixo" ${gF.tipo==='Fixo'?'selected':''}>Fixo</option><option value="Variável" ${gF.tipo==='Variável'?'selected':''}>Variável</option></select>
     </div>
   </div>
-  <div class="card p-4 mb-4">
-    <p class="text-xs font-semibold text-slate-500 uppercase mb-3">Por Categoria — ${moName(curMo)}</p>
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">${cats}</div>
+  <div class="card p-3 mb-3">
+    <p class="text-xs font-bold text-slate-500 uppercase mb-2">Por Categoria — ${moName(curMo)}</p>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${cats}</div>
   </div>
   <div class="card overflow-hidden"><div id="gtbl">${buildGastosTable()}</div></div>`;
-  document.getElementById('gsearch').addEventListener('input', e=>{gF.s=e.target.value; refGastos();});
-  document.getElementById('gcat').addEventListener('change', e=>{gF.cat=e.target.value; refGastos();});
-  document.getElementById('gtipo').addEventListener('change', e=>{gF.tipo=e.target.value; refGastos();});
+  document.getElementById('gsearch').addEventListener('input',e=>{gF.s=e.target.value;refGastos();});
+  document.getElementById('gcat').addEventListener('change',e=>{gF.cat=e.target.value;refGastos();});
+  document.getElementById('gtipo').addEventListener('change',e=>{gF.tipo=e.target.value;refGastos();});
 }
 function filtGastos(){
   return D.gastos.filter(g=>{
@@ -627,154 +717,164 @@ function filtGastos(){
     return(!q||g.descricao?.toLowerCase().includes(q))&&(!gF.cat||g.categoria===gF.cat)&&(!gF.tipo||g.tipo===gF.tipo);
   }).sort((a,b)=>(b.data||'')>(a.data||'')?1:-1);
 }
-function refGastos(){const el=document.getElementById('gtbl'); if(el) el.innerHTML=buildGastosTable();}
+function refGastos(){const el=document.getElementById('gtbl');if(el)el.innerHTML=buildGastosTable();}
 function buildGastosTable(){
   const rows=filtGastos();
-  if(!rows.length) return `<div class="em"><i class="fas fa-receipt"></i><p>Nenhum gasto encontrado</p></div>`;
-  return `<div class="overflow-x-auto"><table>
+  if(!rows.length)return`<div class="em"><i class="fas fa-receipt"></i><p>Nenhum gasto encontrado</p></div>`;
+  const mob=`<div class="mob-card divide-y divide-slate-100">${rows.map(g=>`
+    <div class="p-3">
+      <div class="flex justify-between items-start mb-1.5">
+        <div><span class="badge bi">${esc(g.categoria||'—')}</span><p class="text-xs text-slate-500 mt-1">${esc(g.descricao||'—')}</p></div>
+        <span class="font-bold text-sm text-red-600 ml-2">${R$(g.valor)}</span>
+      </div>
+      <div class="flex items-center justify-between mt-2">
+        <div class="flex gap-2 text-xs text-slate-400">
+          <span class="badge ${g.tipo==='Fixo'?'bfx':'bvr'}">${esc(g.tipo||'—')}</span>
+          <span>${fmtD(g.data)}</span>
+        </div>
+        <div class="flex gap-1.5">
+          <button data-action="edit-gasto" data-id="${g.id}" class="bsm be"><i class="fas fa-pen"></i></button>
+          <button data-action="del-gasto" data-id="${g.id}" class="bsm bd"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    </div>`).join('')}</div>`;
+  const desk=`<div class="desk-table overflow-x-auto"><table>
     <thead><tr><th>Categoria</th><th>Descrição</th><th>Valor</th><th>Tipo</th><th>Data</th><th>Ações</th></tr></thead>
     <tbody>${rows.map(g=>`<tr>
       <td><span class="badge bi">${esc(g.categoria||'—')}</span></td>
       <td class="text-slate-500">${esc(g.descricao||'—')}</td>
       <td class="font-semibold text-red-600">${R$(g.valor)}</td>
       <td><span class="badge ${g.tipo==='Fixo'?'bfx':'bvr'}">${esc(g.tipo||'—')}</span></td>
-      <td class="text-slate-500 whitespace-nowrap">${fmtD(g.data)}</td>
+      <td class="text-slate-500">${fmtD(g.data)}</td>
       <td><div class="flex gap-1.5">
         <button data-action="edit-gasto" data-id="${g.id}" class="bsm be"><i class="fas fa-pen"></i></button>
         <button data-action="del-gasto" data-id="${g.id}" class="bsm bd"><i class="fas fa-trash"></i></button>
       </div></td>
     </tr>`).join('')}</tbody>
   </table></div>`;
+  return mob+desk;
 }
-
-function openGastoModal(id=null) {
-  const g = id ? D.gastos.find(x=>x.id===id) : null;
-  showModal(`<div class="p-6">
-    <div class="flex justify-between items-center mb-5">
-      <h2 class="text-base font-bold text-slate-800">${g?'Editar Gasto':'Novo Gasto'}</h2>
-      <button data-action="close-modal" class="text-slate-400 hover:text-slate-600 bg-transparent border-0 cursor-pointer text-xl"><i class="fas fa-times"></i></button>
+function openGastoModal(id=null){
+  const g=id?D.gastos.find(x=>x.id===id):null;
+  showModal(`<div class="p-5">
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-base font-bold">${g?'Editar Gasto':'Novo Gasto'}</h2>
+      <button data-action="close-modal" class="text-slate-400 text-xl bg-transparent border-0 cursor-pointer w-8 h-8 flex items-center justify-center"><i class="fas fa-times"></i></button>
     </div>
     <form id="gasto-form">
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="fl">Categoria *</label><select name="cat" class="fi" required>${GCAT.map(c=>`<option ${g?.categoria===c?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
-        <div><label class="fl">Tipo</label><select name="tipo" class="fi"><option ${g?.tipo==='Fixo'?'selected':''}>Fixo</option><option ${g?.tipo==='Variável'?'selected':''}>Variável</option></select></div>
-        <div class="col-span-2"><label class="fl">Descrição</label><input name="desc" class="fi" value="${esc(g?.descricao||'')}"></div>
-        <div><label class="fl">Valor (R$) *</label><input name="valor" type="number" step="0.01" min="0" class="fi" required value="${g?.valor||''}"></div>
-        <div><label class="fl">Data *</label><input name="data" type="date" class="fi" required value="${g?.data||today()}"></div>
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="fl">Categoria *</label><select name="cat" class="fi" required>${GCAT.map(c=>`<option ${g?.categoria===c?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
+          <div><label class="fl">Tipo</label><select name="tipo" class="fi"><option ${g?.tipo==='Fixo'?'selected':''}>Fixo</option><option ${g?.tipo==='Variável'?'selected':''}>Variável</option></select></div>
+        </div>
+        <div><label class="fl">Descrição</label><input name="desc" class="fi" value="${esc(g?.descricao||'')}" placeholder="Descreva o gasto"></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="fl">Valor (R$) *</label><input name="valor" type="number" step="0.01" min="0" class="fi" required value="${g?.valor||''}" placeholder="0,00"></div>
+          <div><label class="fl">Data *</label><input name="data" type="date" class="fi" required value="${g?.data||today()}"></div>
+        </div>
       </div>
       <div class="flex gap-3 mt-4">
         <button type="button" data-action="close-modal" class="btn bs flex-1 justify-center">Cancelar</button>
-        <button type="submit" class="btn bp flex-1 justify-center">${g?'Salvar':'Registrar Gasto'}</button>
+        <button type="submit" class="btn bp flex-1 justify-center">${g?'Salvar':'Registrar'}</button>
       </div>
     </form>
   </div>`);
-  document.getElementById('gasto-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const f = e.target;
-    const obj = {id:id||uid(),categoria:f.cat.value,tipo:f.tipo.value,descricao:f.desc.value.trim(),valor:parseFloat(f.valor.value)||0,data:f.data.value};
+  document.getElementById('gasto-form').addEventListener('submit',async e=>{
+    e.preventDefault();const f=e.target;
+    const obj={id:id||uid(),categoria:f.cat.value,tipo:f.tipo.value,descricao:f.desc.value.trim(),valor:parseFloat(f.valor.value)||0,data:f.data.value};
     if(!db){if(id){const i=D.gastos.findIndex(x=>x.id===id);if(i>=0)D.gastos[i]=obj;}else D.gastos.push(obj);}
     await dbSet('gastos',obj.id,obj);
-    closeModal(); toast(id?'✅ Gasto atualizado!':'✅ Gasto registrado!');
-    if(!db) go('gastos');
+    closeModal();toast(id?'✅ Atualizado!':'✅ Gasto registrado!');if(!db)go('gastos');
   });
 }
-
-async function delGasto(id) {
-  if(!confirm('Remover este gasto?')) return;
-  if(!db) D.gastos=D.gastos.filter(g=>g.id!==id);
-  await dbDel('gastos',id);
-  toast('🗑️ Gasto removido.'); if(!db) go('gastos');
-}
+async function delGasto(id){if(!confirm('Remover este gasto?'))return;if(!db)D.gastos=D.gastos.filter(g=>g.id!==id);await dbDel('gastos',id);toast('🗑️ Removido.');if(!db)go('gastos');}
 
 // ── METAS ─────────────────────────────────────────────────────────────────────
-function renderMetas(c) {
-  const meta = D.metas[curMo]||{};
-  const m = metrics(curMo);
-  const items = [
+function renderMetas(c){
+  const meta=D.metas[curMo]||{};const m=metrics(curMo);
+  const items=[
     {label:'Leads',cur:m.leads.n,tgt:meta.leads,color:'bg-violet-500',fmt:v=>v},
     {label:'Vendas',cur:m.vendas.n,tgt:meta.vendas,color:'bg-sky-500',fmt:v=>v},
     {label:'Faturamento',cur:m.bruto,tgt:meta.faturamento,color:'bg-indigo-500',fmt:R$},
     {label:'Gastos (limite)',cur:m.tG,tgt:meta.gastos_max,color:'bg-amber-400',fmt:R$,inv:true},
   ];
-  const prog = items.filter(i=>i.tgt).map(i=>{
-    const pct=Math.min(i.cur/i.tgt*100,100); const over=i.cur>i.tgt;
-    return `<div class="mb-4"><div class="flex justify-between text-sm mb-1"><span class="font-medium text-slate-700">${i.label}</span><span class="text-slate-500">${i.fmt(i.cur)} / ${i.fmt(i.tgt)}</span></div>
+  const prog=items.filter(i=>i.tgt).map(i=>{
+    const pct=Math.min(i.cur/i.tgt*100,100);const over=i.cur>i.tgt;
+    return`<div class="mb-3"><div class="flex justify-between text-sm mb-1"><span class="font-medium">${i.label}</span><span class="text-slate-500 text-xs">${i.fmt(i.cur)} / ${i.fmt(i.tgt)}</span></div>
     <div class="pb"><div class="pf ${over&&i.inv?'bg-red-500':i.color}" style="width:${pct}%"></div></div>
     <div class="text-right text-xs mt-0.5 ${over&&!i.inv?'text-green-600 font-semibold':over&&i.inv?'text-red-600 font-semibold':'text-slate-400'}">${pct.toFixed(1)}%${over&&!i.inv?' ✓ Meta atingida!':over&&i.inv?' ⚠ Limite excedido':''}</div></div>`;
-  }).join('') || `<div class="em py-8"><i class="fas fa-bullseye text-3xl mb-2"></i><p class="text-sm">Nenhuma meta definida para este mês</p></div>`;
-  const hist = Object.keys(D.metas).sort().reverse().slice(0,12);
-  c.innerHTML = `
-  <div class="mb-5"><h2 class="text-lg font-bold text-slate-800">Metas</h2><p class="text-slate-500 text-sm">Metas mensais da equipe</p></div>
-  <div class="flex items-center gap-2 mb-5">
-    <button data-action="prev-month" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center cursor-pointer"><i class="fas fa-chevron-left text-xs"></i></button>
-    <div class="bg-white border border-slate-200 rounded-lg px-4 py-1.5 text-sm font-semibold text-slate-700">${moName(curMo)}</div>
-    <button data-action="next-month" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center cursor-pointer"><i class="fas fa-chevron-right text-xs"></i></button>
+  }).join('')||`<div class="em py-8"><i class="fas fa-bullseye text-3xl mb-2"></i><p class="text-sm">Nenhuma meta definida</p></div>`;
+  const hist=Object.keys(D.metas).sort().reverse().slice(0,12);
+  c.innerHTML=`
+  <div class="mb-4"><h2 class="text-base font-bold text-slate-800">Metas</h2><p class="text-slate-400 text-xs">Metas mensais da equipe</p></div>
+  <div class="flex items-center gap-2 mb-4">
+    <button data-action="prev-month" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 flex items-center justify-center cursor-pointer"><i class="fas fa-chevron-left text-xs"></i></button>
+    <div class="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-700">${moName(curMo)}</div>
+    <button data-action="next-month" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-500 flex items-center justify-center cursor-pointer"><i class="fas fa-chevron-right text-xs"></i></button>
   </div>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-    <div class="card p-6">
-      <h3 class="font-semibold text-slate-700 text-sm mb-4">Definir — ${moName(curMo)}</h3>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+    <div class="card p-4">
+      <h3 class="font-semibold text-slate-700 text-sm mb-3">Definir — ${moName(curMo)}</h3>
       <form id="meta-form">
         <div class="space-y-3">
-          <div><label class="fl">Meta de Leads (qtd)</label><input name="leads" type="number" min="0" class="fi" value="${meta.leads||''}"></div>
-          <div><label class="fl">Meta de Vendas (qtd)</label><input name="vendas" type="number" min="0" class="fi" value="${meta.vendas||''}"></div>
-          <div><label class="fl">Meta de Faturamento (R$)</label><input name="fat" type="number" step="0.01" min="0" class="fi" value="${meta.faturamento||''}"></div>
-          <div><label class="fl">Limite de Gastos (R$)</label><input name="gmax" type="number" step="0.01" min="0" class="fi" value="${meta.gastos_max||''}"></div>
+          <div><label class="fl">Meta de Leads</label><input name="leads" type="number" min="0" class="fi" value="${meta.leads||''}" placeholder="Ex: 50"></div>
+          <div><label class="fl">Meta de Vendas</label><input name="vendas" type="number" min="0" class="fi" value="${meta.vendas||''}" placeholder="Ex: 20"></div>
+          <div><label class="fl">Meta de Faturamento (R$)</label><input name="fat" type="number" step="0.01" min="0" class="fi" value="${meta.faturamento||''}" placeholder="Ex: 50000"></div>
+          <div><label class="fl">Limite de Gastos (R$)</label><input name="gmax" type="number" step="0.01" min="0" class="fi" value="${meta.gastos_max||''}" placeholder="Ex: 15000"></div>
         </div>
-        <button type="submit" class="btn bp w-full justify-center mt-4"><i class="fas fa-save"></i> Salvar Metas</button>
+        <button type="submit" class="btn bp w-full justify-center mt-3"><i class="fas fa-save"></i> Salvar Metas</button>
       </form>
     </div>
-    <div class="card p-6"><h3 class="font-semibold text-slate-700 text-sm mb-4">Progresso — ${moName(curMo)}</h3>${prog}</div>
+    <div class="card p-4"><h3 class="font-semibold text-slate-700 text-sm mb-3">Progresso — ${moName(curMo)}</h3>${prog}</div>
   </div>
-  <div class="card p-6">
-    <h3 class="font-semibold text-slate-700 text-sm mb-4">Histórico</h3>
-    ${hist.length?`<div class="overflow-x-auto"><table><thead><tr><th>Mês</th><th>Leads</th><th>Vendas</th><th>Faturamento</th><th>Limite Gastos</th></tr></thead><tbody>
-      ${hist.map(k=>{const mt=D.metas[k];return`<tr class="${k===curMo?'bg-indigo-50':''}"><td class="font-medium">${moLabel(k)}${k===curMo?' <span class="badge bn">Atual</span>':''}</td><td>${mt.leads||'—'}</td><td>${mt.vendas||'—'}</td><td>${mt.faturamento?R$(mt.faturamento):'—'}</td><td>${mt.gastos_max?R$(mt.gastos_max):'—'}</td></tr>`;}).join('')}
+  <div class="card p-4">
+    <h3 class="font-semibold text-slate-700 text-sm mb-3">Histórico</h3>
+    ${hist.length?`<div class="overflow-x-auto"><table><thead><tr><th>Mês</th><th>Leads</th><th>Vendas</th><th>Faturamento</th><th>Lim. Gastos</th></tr></thead>
+    <tbody>${hist.map(k=>{const mt=D.metas[k];return`<tr class="${k===curMo?'bg-indigo-50':''}"><td class="font-medium whitespace-nowrap">${moLabel(k)}${k===curMo?' <span class="badge bn">Atual</span>':''}</td><td>${mt.leads||'—'}</td><td>${mt.vendas||'—'}</td><td class="whitespace-nowrap">${mt.faturamento?R$(mt.faturamento):'—'}</td><td class="whitespace-nowrap">${mt.gastos_max?R$(mt.gastos_max):'—'}</td></tr>`;}).join('')}
     </tbody></table></div>`:`<p class="text-slate-400 text-sm">Nenhum histórico ainda</p>`}
   </div>`;
-  document.getElementById('meta-form').addEventListener('submit', async e => {
-    e.preventDefault(); const f=e.target;
+  document.getElementById('meta-form').addEventListener('submit',async e=>{
+    e.preventDefault();const f=e.target;
     const obj={leads:+f.leads.value||0,vendas:+f.vendas.value||0,faturamento:parseFloat(f.fat.value)||0,gastos_max:parseFloat(f.gmax.value)||0};
-    if(!db) D.metas[curMo]=obj;
-    await dbSet('metas',curMo,obj);
-    toast('✅ Metas salvas!'); if(!db) go('metas');
+    if(!db)D.metas[curMo]=obj;
+    await dbSet('metas',curMo,obj);toast('✅ Metas salvas!');if(!db)go('metas');
   });
 }
 
 // ── RELATÓRIOS ────────────────────────────────────────────────────────────────
-function renderRel(c) {
+function renderRel(c){
   const all=[...new Set([...D.leads.map(l=>l.data?.slice(0,7)),...D.vendas.map(v=>v.data?.slice(0,7)),...D.gastos.map(g=>g.data?.slice(0,7)),curMo])].filter(Boolean).sort().reverse();
   c.innerHTML=`
-  <div class="flex flex-wrap justify-between items-center gap-3 mb-5 no-print">
-    <div><h2 class="text-lg font-bold text-slate-800">Relatórios</h2><p class="text-slate-500 text-sm">Resumo mensal consolidado</p></div>
+  <div class="flex justify-between items-center gap-3 mb-4 no-print">
+    <div><h2 class="text-base font-bold text-slate-800">Relatórios</h2><p class="text-slate-400 text-xs">Resumo mensal</p></div>
     <div class="flex gap-2">
-      <button data-action="export-csv" class="btn bs"><i class="fas fa-file-csv"></i> CSV</button>
-      <button data-action="print" class="btn bs"><i class="fas fa-print"></i> Imprimir</button>
+      <button data-action="export-csv" class="btn bs" style="padding:7px 12px;font-size:12px"><i class="fas fa-file-csv"></i> CSV</button>
+      <button data-action="print" class="btn bs" style="padding:7px 12px;font-size:12px"><i class="fas fa-print"></i></button>
     </div>
   </div>
-  <div class="space-y-4">${all.slice(0,8).map(mo=>{
-    const m=metrics(mo); const meta=D.metas[mo]||{};
+  <div class="space-y-3">${all.slice(0,8).map(mo=>{
+    const m=metrics(mo);const meta=D.metas[mo]||{};
     const ls=D.leads.filter(l=>l.data?.slice(0,7)===mo);
     const vs=D.vendas.filter(v=>v.data?.slice(0,7)===mo&&v.status!=='Cancelada');
     const bySocio=D.socios.map(s=>{
       const lS=ls.filter(l=>l.responsavel===s).length;
       const vS=vs.filter(v=>v.responsavel===s);
       const fS=vS.reduce((t,v)=>t+(+v.valor||0),0);
-      if(!lS&&!vS.length) return '';
-      return `<div class="bg-white rounded-lg p-3 border border-slate-100"><p class="font-semibold text-sm">${esc(s)}</p><p class="text-xs text-slate-500">${lS} lead(s) · ${vS.length} venda(s)</p><p class="text-sm font-bold text-green-600">${R$(fS)}</p></div>`;
+      if(!lS&&!vS.length)return'';
+      return`<div class="bg-white rounded-lg p-2.5 border border-slate-100"><p class="font-semibold text-sm">${esc(s)}</p><p class="text-xs text-slate-400">${lS} lead(s) · ${vS.length} venda(s)</p><p class="text-sm font-bold text-green-600">${R$(fS)}</p></div>`;
     }).filter(Boolean).join('');
-    return `<div class="card p-6"><div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100"><h3 class="font-bold text-slate-800">${moName(mo)}</h3>${mo===curMo?'<span class="badge bn">Atual</span>':''}</div>
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-4">
-      <div class="text-center"><div class="text-xl font-bold text-indigo-600">${R$(m.bruto)}</div><div class="text-xs text-slate-500 mt-1">Fat. Bruto</div>${meta.faturamento?`<div class="text-xs text-slate-400">${(m.bruto/meta.faturamento*100).toFixed(0)}% meta</div>`:''}</div>
-      <div class="text-center"><div class="text-xl font-bold ${m.liquido>=0?'text-green-600':'text-red-600'}">${R$(m.liquido)}</div><div class="text-xs text-slate-500 mt-1">Fat. Líquido</div></div>
-      <div class="text-center"><div class="text-xl font-bold text-red-500">${R$(m.tG)}</div><div class="text-xs text-slate-500 mt-1">Gastos</div></div>
-      <div class="text-center"><div class="text-xl font-bold text-violet-600">${m.leads.n}</div><div class="text-xs text-slate-500 mt-1">Leads</div>${meta.leads?`<div class="text-xs text-slate-400">Meta ${meta.leads}</div>`:''}</div>
-      <div class="text-center"><div class="text-xl font-bold text-sky-600">${m.vendas.n}</div><div class="text-xs text-slate-500 mt-1">Vendas</div>${meta.vendas?`<div class="text-xs text-slate-400">Meta ${meta.vendas}</div>`:''}</div>
+    return`<div class="card p-4"><div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-100"><h3 class="font-bold text-slate-800 text-sm">${moName(mo)}</h3>${mo===curMo?'<span class="badge bn">Atual</span>':''}</div>
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-3">
+      <div class="text-center"><p class="text-base font-bold text-indigo-600">${R$(m.bruto)}</p><p class="text-xs text-slate-400 mt-0.5">Fat. Bruto</p>${meta.faturamento?`<p class="text-xs text-slate-400">${(m.bruto/meta.faturamento*100).toFixed(0)}% meta</p>`:''}</div>
+      <div class="text-center"><p class="text-base font-bold ${m.liquido>=0?'text-green-600':'text-red-600'}">${R$(m.liquido)}</p><p class="text-xs text-slate-400 mt-0.5">Líquido</p></div>
+      <div class="text-center"><p class="text-base font-bold text-red-500">${R$(m.tG)}</p><p class="text-xs text-slate-400 mt-0.5">Gastos</p></div>
+      <div class="text-center"><p class="text-base font-bold text-violet-600">${m.leads.n}</p><p class="text-xs text-slate-400 mt-0.5">Leads</p></div>
+      <div class="text-center"><p class="text-base font-bold text-sky-600">${m.vendas.n}</p><p class="text-xs text-slate-400 mt-0.5">Vendas</p></div>
     </div>
-    ${bySocio?`<div class="bg-slate-50 rounded-lg p-4"><p class="text-xs font-semibold text-slate-500 uppercase mb-3">Por Responsável</p><div class="grid grid-cols-2 sm:grid-cols-3 gap-3">${bySocio}</div></div>`:''}</div>`;
+    ${bySocio?`<div class="bg-slate-50 rounded-lg p-3"><p class="text-xs font-bold text-slate-400 uppercase mb-2">Por Responsável</p><div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${bySocio}</div></div>`:''}</div>`;
   }).join('')}</div>`;
 }
-
-function exportCSV() {
+function exportCSV(){
   const all=[...new Set([...D.leads.map(l=>l.data?.slice(0,7)),...D.vendas.map(v=>v.data?.slice(0,7)),...D.gastos.map(g=>g.data?.slice(0,7)),curMo])].filter(Boolean).sort().reverse();
   let csv='Mês,Fat. Bruto,Fat. Líquido,Gastos,Leads,Vendas,Ticket Médio\n';
   all.forEach(mo=>{const m=metrics(mo);csv+=`${moLabel(mo)},${m.bruto.toFixed(2)},${m.liquido.toFixed(2)},${m.tG.toFixed(2)},${m.leads.n},${m.vendas.n},${m.ticket.toFixed(2)}\n`;});
@@ -784,146 +884,121 @@ function exportCSV() {
 }
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-function renderConfig(c) {
-  const fbCfg = loadFBConfig();
-  c.innerHTML = `
-  <div class="mb-5"><h2 class="text-lg font-bold text-slate-800">Configurações</h2><p class="text-slate-500 text-sm">Equipe, Firebase e dados</p></div>
-  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-    <div class="card p-6">
-      <h3 class="font-semibold text-slate-700 text-sm mb-4">Equipe / Sócios</h3>
+function renderConfig(c){
+  const fbCfg=loadFBConfig();
+  c.innerHTML=`
+  <div class="mb-4"><h2 class="text-base font-bold text-slate-800">Configurações</h2></div>
+  <div class="space-y-3">
+    <!-- Equipe -->
+    <div class="card p-4">
+      <h3 class="font-semibold text-slate-700 text-sm mb-3">Equipe / Sócios</h3>
       <div id="socios-list" class="space-y-2 mb-3">
-        ${D.socios.map((s,i)=>`<div class="flex gap-2">
-          <input class="fi" value="${esc(s)}" id="socio-${i}">
-          <button data-action="rm-socio" data-id="${i}" class="bsm bd flex-shrink-0"><i class="fas fa-times"></i></button>
-        </div>`).join('')}
+        ${D.socios.map((s,i)=>`<div class="flex gap-2"><input class="fi" value="${esc(s)}" id="socio-${i}"><button data-action="rm-socio" data-id="${i}" class="bsm bd flex-shrink-0 px-3"><i class="fas fa-times"></i></button></div>`).join('')}
       </div>
-      <button data-action="add-socio" class="btn bs w-full justify-center"><i class="fas fa-plus"></i> Adicionar Sócio</button>
-      <button data-action="save-socios" class="btn bp w-full justify-center mt-2"><i class="fas fa-save"></i> Salvar Equipe</button>
-    </div>
-    <div class="card p-6">
-      <h3 class="font-semibold text-slate-700 text-sm mb-4">Dados</h3>
-      ${[['Leads',D.leads.length,'fa-user-plus','text-violet-500'],['Vendas',D.vendas.length,'fa-handshake','text-sky-500'],['Gastos',D.gastos.length,'fa-receipt','text-amber-500']].map(([l,n,i,cl])=>`
-      <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg mb-2"><div><p class="font-medium text-sm">${l}</p><p class="text-xs text-slate-400">${n} registro(s)</p></div><i class="fas ${i} ${cl}"></i></div>`).join('')}
-      <div class="space-y-2 mt-3 pt-3 border-t border-slate-100">
-        <button data-action="export" class="btn bs w-full justify-center"><i class="fas fa-file-export"></i> Exportar JSON</button>
-        <button data-action="import" class="btn bs w-full justify-center"><i class="fas fa-file-import"></i> Importar JSON</button>
-        <button data-action="clear-all" class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm hover:bg-red-100 font-medium cursor-pointer border-0">
-          <i class="fas fa-trash"></i> Limpar Todos os Dados
-        </button>
+      <div class="flex gap-2">
+        <button data-action="add-socio" class="btn bs flex-1 justify-center"><i class="fas fa-plus"></i> Adicionar</button>
+        <button data-action="save-socios" class="btn bp flex-1 justify-center"><i class="fas fa-save"></i> Salvar</button>
       </div>
     </div>
 
-    <!-- Firebase Setup -->
-    <div class="card p-6 lg:col-span-2">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h3 class="font-semibold text-slate-700 text-sm">🔥 Firebase — Dados em Tempo Real</h3>
-          <p class="text-slate-500 text-xs mt-0.5">Conecte o Firebase para que todos os sócios vejam os dados ao mesmo tempo.</p>
-        </div>
-        <div class="fb-badge ${db?'fb-on':'fb-off'}"><i class="fas fa-circle text-[8px]"></i>${db?'Conectado':'Desconectado'}</div>
+    <!-- Dados mobile actions -->
+    <div class="card p-4">
+      <h3 class="font-semibold text-slate-700 text-sm mb-3">Dados</h3>
+      <div class="grid grid-cols-3 gap-2 text-center mb-3">
+        <div class="bg-slate-50 rounded-lg p-2"><p class="text-lg font-bold text-violet-600">${D.leads.length}</p><p class="text-xs text-slate-400">Leads</p></div>
+        <div class="bg-slate-50 rounded-lg p-2"><p class="text-lg font-bold text-sky-600">${D.vendas.length}</p><p class="text-xs text-slate-400">Vendas</p></div>
+        <div class="bg-slate-50 rounded-lg p-2"><p class="text-lg font-bold text-amber-500">${D.gastos.length}</p><p class="text-xs text-slate-400">Gastos</p></div>
       </div>
-      <form id="fb-form">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-          <div><label class="fl">API Key</label><input name="apiKey" class="fi" required value="${esc(fbCfg?.apiKey||'')}" placeholder="AIzaSy..."></div>
-          <div><label class="fl">Auth Domain</label><input name="authDomain" class="fi" required value="${esc(fbCfg?.authDomain||'')}" placeholder="seu-projeto.firebaseapp.com"></div>
-          <div><label class="fl">Project ID</label><input name="projectId" class="fi" required value="${esc(fbCfg?.projectId||'')}" placeholder="seu-projeto"></div>
-          <div><label class="fl">Storage Bucket</label><input name="storageBucket" class="fi" value="${esc(fbCfg?.storageBucket||'')}" placeholder="seu-projeto.appspot.com"></div>
-          <div><label class="fl">Messaging Sender ID</label><input name="messagingSenderId" class="fi" value="${esc(fbCfg?.messagingSenderId||'')}" placeholder="123456789"></div>
-          <div><label class="fl">App ID</label><input name="appId" class="fi" value="${esc(fbCfg?.appId||'')}" placeholder="1:123:web:abc..."></div>
-        </div>
-        <div class="flex gap-2">
-          <button type="submit" class="btn bp"><i class="fas fa-plug"></i> Conectar Firebase</button>
-          ${db?`<button type="button" data-action="disconnect-fb" class="btn bs"><i class="fas fa-unlink"></i> Desconectar</button>`:''}
+      <div class="grid grid-cols-2 gap-2">
+        <button data-action="export" class="btn bs justify-center"><i class="fas fa-file-export"></i> Exportar</button>
+        <button data-action="import" class="btn bs justify-center"><i class="fas fa-file-import"></i> Importar</button>
+        <button data-action="demo" class="btn bs justify-center col-span-2"><i class="fas fa-database"></i> Carregar Demo</button>
+        <button data-action="clear-all" class="col-span-2 flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium cursor-pointer border-0"><i class="fas fa-trash"></i> Limpar Todos os Dados</button>
+      </div>
+    </div>
+
+    <!-- Firebase -->
+    <div class="card p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-slate-700 text-sm">🔥 Firebase</h3>
+        <div class="fb-badge ${db?'fb-on':'fb-off'}"><i class="fas fa-circle" style="font-size:7px"></i>${db?'Conectado':'Desconectado'}</div>
+      </div>
+      <form id="fb-form" class="space-y-2">
+        <div><label class="fl">API Key</label><input name="apiKey" class="fi" required value="${esc(fbCfg?.apiKey||'')}" placeholder="AIzaSy..."></div>
+        <div><label class="fl">Auth Domain</label><input name="authDomain" class="fi" required value="${esc(fbCfg?.authDomain||'')}" placeholder="projeto.firebaseapp.com"></div>
+        <div><label class="fl">Project ID</label><input name="projectId" class="fi" required value="${esc(fbCfg?.projectId||'')}" placeholder="meu-projeto"></div>
+        <div><label class="fl">Storage Bucket</label><input name="storageBucket" class="fi" value="${esc(fbCfg?.storageBucket||'')}" placeholder="projeto.appspot.com"></div>
+        <div><label class="fl">Messaging Sender ID</label><input name="messagingSenderId" class="fi" value="${esc(fbCfg?.messagingSenderId||'')}" placeholder="123456789"></div>
+        <div><label class="fl">App ID</label><input name="appId" class="fi" value="${esc(fbCfg?.appId||'')}" placeholder="1:123:web:abc..."></div>
+        <div class="flex gap-2 pt-1">
+          <button type="submit" class="btn bp flex-1 justify-center"><i class="fas fa-plug"></i> Conectar</button>
+          ${db?`<button type="button" data-action="disconnect-fb" class="btn bs"><i class="fas fa-unlink"></i></button>`:''}
         </div>
       </form>
-      <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-        <p class="font-semibold mb-2">Como obter as credenciais do Firebase (gratuito):</p>
-        <ol class="list-decimal list-inside space-y-1 text-xs">
-          <li>Acesse <strong>console.firebase.google.com</strong> com sua conta Google</li>
-          <li>Clique em <strong>"Criar projeto"</strong>, dê um nome (ex: koda-forge) e clique em Continuar</li>
-          <li>No menu lateral, clique em <strong>"Firestore Database"</strong> → Criar banco de dados → Modo de teste → Habilitar</li>
-          <li>Vá em <strong>Configurações do projeto</strong> (ícone de engrenagem) → Seus aplicativos → Adicionar app Web (&lt;/&gt;)</li>
-          <li>Registre o app e copie o objeto <code>firebaseConfig</code> para os campos acima</li>
-          <li>Compartilhe este arquivo HTML com os sócios — todos conectam com as mesmas credenciais</li>
+      <div class="mt-3 bg-blue-50 rounded-lg p-3 text-xs text-blue-700">
+        <p class="font-bold mb-1">Como obter as credenciais:</p>
+        <ol class="list-decimal list-inside space-y-0.5">
+          <li>Acesse <strong>console.firebase.google.com</strong></li>
+          <li>Crie um projeto → ative o <strong>Firestore</strong> (modo de teste)</li>
+          <li>Configurações ⚙️ → Seus Apps → Web (&lt;/&gt;) → copie o firebaseConfig</li>
         </ol>
       </div>
     </div>
 
-    <!-- Deploy instructions -->
-    <div class="card p-6 lg:col-span-2">
-      <h3 class="font-semibold text-slate-700 text-sm mb-3">🚀 Publicar Online (Netlify — gratuito)</h3>
-      <ol class="list-decimal list-inside space-y-2 text-sm text-slate-600">
-        <li>Primeiro, conecte o Firebase acima (para dados compartilhados)</li>
-        <li>Acesse <strong>netlify.com</strong> e crie uma conta gratuita</li>
-        <li>Na página inicial, arraste a pasta <strong>"Admin Koda Forge"</strong> para a área indicada</li>
-        <li>Em segundos você receberá uma URL como <strong>https://seu-nome.netlify.app</strong></li>
-        <li>Compartilhe essa URL com os sócios — todos acessam pelo navegador, no celular ou PC</li>
+    <!-- Deploy -->
+    <div class="card p-4">
+      <h3 class="font-semibold text-slate-700 text-sm mb-2">🚀 Deploy no Vercel</h3>
+      <ol class="list-decimal list-inside space-y-1 text-sm text-slate-600">
+        <li>Conecte o Firebase acima</li>
+        <li>Acesse <strong>vercel.com</strong> → importe o repositório GitHub</li>
+        <li>Compartilhe a URL com os sócios</li>
       </ol>
-      <div class="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
-        <strong>Importante:</strong> Configure o Firebase antes de publicar. Após a publicação, cada sócio abre a URL, insere as credenciais do Firebase uma única vez, e os dados ficam sincronizados em tempo real.
-      </div>
     </div>
   </div>`;
-
-  document.getElementById('fb-form').addEventListener('submit', e => {
-    e.preventDefault(); const f=e.target;
+  document.getElementById('fb-form').addEventListener('submit',e=>{
+    e.preventDefault();const f=e.target;
     const cfg={apiKey:f.apiKey.value.trim(),authDomain:f.authDomain.value.trim(),projectId:f.projectId.value.trim(),
       storageBucket:f.storageBucket.value.trim(),messagingSenderId:f.messagingSenderId.value.trim(),appId:f.appId.value.trim()};
-    saveFBConfig(cfg); initFirebase(cfg); go('config');
+    saveFBConfig(cfg);initFirebase(cfg);go('config');
   });
 }
-
-async function saveSocios() {
-  const inputs = document.querySelectorAll('[id^="socio-"]');
-  const lista = [...inputs].map(i=>i.value.trim()).filter(Boolean);
-  D.socios = lista;
-  await dbSetConfig('socios',{lista});
-  if(!db) localSave();
-  toast('✅ Equipe salva!'); go('config');
+async function saveSocios(){
+  const inputs=document.querySelectorAll('[id^="socio-"]');
+  const lista=[...inputs].map(i=>i.value.trim()).filter(Boolean);
+  D.socios=lista;await dbSetConfig('socios',{lista});if(!db)localSave();toast('✅ Equipe salva!');go('config');
 }
-async function addSocio() { D.socios.push('Novo Sócio'); if(!db) localSave(); go('config'); }
-async function rmSocio(i) {
+async function addSocio(){D.socios.push('Novo Sócio');if(!db)localSave();go('config');}
+async function rmSocio(i){
   if(D.socios.length<=1){toast('❌ Mínimo 1 sócio.');return;}
-  D.socios.splice(i,1);
-  await dbSetConfig('socios',{lista:D.socios});
-  if(!db) localSave(); go('config');
+  D.socios.splice(i,1);await dbSetConfig('socios',{lista:D.socios});if(!db)localSave();go('config');
 }
-async function clearAll() {
-  if(!confirm('Apagar TODOS os dados?')) return;
-  if(!confirm('Tem certeza? Esta ação não pode ser desfeita.')) return;
-  if(db){
-    const cols=['leads','vendas','gastos','metas'];
-    for(const col of cols){const snap=await db.collection(col).get();for(const d of snap.docs) await d.ref.delete();}
-  } else { D={leads:[],vendas:[],gastos:[],metas:{},socios:D.socios}; localSave(); }
-  toast('🗑️ Dados limpos.'); go('dashboard');
+async function clearAll(){
+  if(!confirm('Apagar TODOS os dados?'))return;
+  if(!confirm('Tem certeza? Não pode ser desfeito.'))return;
+  if(db){const cols=['leads','vendas','gastos','metas'];for(const col of cols){const snap=await db.collection(col).get();for(const d of snap.docs)await d.ref.delete();}}
+  else{D={leads:[],vendas:[],gastos:[],metas:{},socios:D.socios};localSave();}
+  toast('🗑️ Dados limpos.');go('dashboard');
 }
-function disconnectFB() {
-  unsubs.forEach(u=>u()); unsubs=[];
-  db=null; localStorage.removeItem(FBK);
-  updateFBStatus(false); toast('🔌 Firebase desconectado.'); go('config');
-}
+function disconnectFB(){unsubs.forEach(u=>u());unsubs=[];db=null;localStorage.removeItem(FBK);updateFBStatus(false);toast('🔌 Desconectado.');go('config');}
 
-// ── Demo Data ─────────────────────────────────────────────────────────────────
-async function loadDemo() {
-  if(!confirm('Adicionar dados de demonstração?')) return;
-  D.socios=['João Silva','Maria Souza','Pedro Lima'];
-  const mo=curMo, pm=shiftMo(curMo,-1), pm2=shiftMo(curMo,-2);
+// ── Demo ──────────────────────────────────────────────────────────────────────
+async function loadDemo(){
+  if(!confirm('Adicionar dados de demonstração?'))return;
+  const mo=curMo,pm=shiftMo(curMo,-1),pm2=shiftMo(curMo,-2);
   const leads=[
-    {id:uid(),nome:'Carlos Mendes',contato:'(11)98765-4321',email:'carlos@email.com',fonte:'Instagram',status:'Convertido',responsavel:'João Silva',valor_estimado:5000,data:mo+'-05',notas:''},
-    {id:uid(),nome:'Ana Paula',contato:'(21)99887-6655',email:'ana@empresa.com',fonte:'Indicação',status:'Proposta Enviada',responsavel:'Maria Souza',valor_estimado:12000,data:mo+'-10',notas:''},
-    {id:uid(),nome:'Roberto Dias',contato:'(31)97654-3210',email:'roberto@gmail.com',fonte:'Google',status:'Qualificado',responsavel:'Pedro Lima',valor_estimado:3500,data:mo+'-12',notas:''},
-    {id:uid(),nome:'Fernanda Costa',contato:'(41)96543-2109',email:'fernanda@outlook.com',fonte:'Site',status:'Contatado',responsavel:'João Silva',valor_estimado:8000,data:mo+'-15',notas:''},
-    {id:uid(),nome:'Lucas Ferreira',contato:'(71)93210-9876',email:'lucas@gmail.com',fonte:'WhatsApp',status:'Convertido',responsavel:'João Silva',valor_estimado:7500,data:pm+'-08',notas:''},
-    {id:uid(),nome:'Renata Alves',contato:'(81)92109-8765',email:'renata@email.com',fonte:'Evento',status:'Qualificado',responsavel:'Maria Souza',valor_estimado:9000,data:pm+'-14',notas:''},
-    {id:uid(),nome:'Diego Rocha',contato:'(91)91098-7654',email:'diego@startup.com',fonte:'Google',status:'Convertido',responsavel:'Pedro Lima',valor_estimado:4500,data:pm2+'-05',notas:''},
+    {id:uid(),nome:'Carlos Mendes',contato:'(11)98765-4321',email:'carlos@email.com',fonte:'Instagram',status:'Convertido',responsavel:'Guilherme',valor_estimado:5000,data:mo+'-05',notas:''},
+    {id:uid(),nome:'Ana Paula',contato:'(21)99887-6655',email:'ana@empresa.com',fonte:'Indicação',status:'Proposta Enviada',responsavel:'Vinicius',valor_estimado:12000,data:mo+'-10',notas:''},
+    {id:uid(),nome:'Roberto Dias',contato:'(31)97654-3210',email:'roberto@gmail.com',fonte:'Google',status:'Qualificado',responsavel:'Alisson',valor_estimado:3500,data:mo+'-12',notas:''},
+    {id:uid(),nome:'Fernanda Costa',contato:'(41)96543-2109',email:'fernanda@outlook.com',fonte:'Site',status:'Contatado',responsavel:'Italo',valor_estimado:8000,data:mo+'-15',notas:''},
+    {id:uid(),nome:'Lucas Ferreira',contato:'(71)93210-9876',email:'lucas@gmail.com',fonte:'WhatsApp',status:'Convertido',responsavel:'Guilherme',valor_estimado:7500,data:pm+'-08',notas:''},
+    {id:uid(),nome:'Renata Alves',contato:'(81)92109-8765',email:'renata@email.com',fonte:'Evento',status:'Qualificado',responsavel:'Vinicius',valor_estimado:9000,data:pm+'-14',notas:''},
   ];
   const vendas=[
-    {id:uid(),cliente:'Carlos Mendes',produto:'Consultoria Marketing',valor:5000,pagamento:'PIX',responsavel:'João Silva',status:'Confirmada',data:mo+'-07',notas:''},
-    {id:uid(),cliente:'Tech Solutions',produto:'Software CRM',valor:3200,pagamento:'Boleto',responsavel:'Maria Souza',status:'Confirmada',data:mo+'-09',notas:''},
-    {id:uid(),cliente:'Startup XYZ',produto:'Landing Page',valor:2800,pagamento:'PIX',responsavel:'Pedro Lima',status:'Pendente',data:mo+'-14',notas:''},
-    {id:uid(),cliente:'Lucas Ferreira',produto:'Pacote Premium',valor:7500,pagamento:'Cartão de Crédito',responsavel:'João Silva',status:'Confirmada',data:pm+'-10',notas:''},
-    {id:uid(),cliente:'Grupo ABC',produto:'Treinamento',valor:8500,pagamento:'Transferência',responsavel:'Pedro Lima',status:'Confirmada',data:pm+'-15',notas:''},
-    {id:uid(),cliente:'Diego Rocha',produto:'Desenvolvimento Web',valor:4500,pagamento:'Boleto',responsavel:'Pedro Lima',status:'Confirmada',data:pm2+'-08',notas:''},
+    {id:uid(),cliente:'Carlos Mendes',produto:'Consultoria Marketing',valor:5000,pagamento:'PIX',responsavel:'Guilherme',status:'Confirmada',data:mo+'-07'},
+    {id:uid(),cliente:'Tech Solutions',produto:'Software CRM',valor:3200,pagamento:'Boleto',responsavel:'Vinicius',status:'Confirmada',data:mo+'-09'},
+    {id:uid(),cliente:'Startup XYZ',produto:'Landing Page',valor:2800,pagamento:'PIX',responsavel:'Alisson',status:'Pendente',data:mo+'-14'},
+    {id:uid(),cliente:'Lucas Ferreira',produto:'Pacote Premium',valor:7500,pagamento:'Cartão de Crédito',responsavel:'Guilherme',status:'Confirmada',data:pm+'-10'},
+    {id:uid(),cliente:'Grupo ABC',produto:'Treinamento',valor:8500,pagamento:'Transferência',responsavel:'Italo',status:'Confirmada',data:pm+'-15'},
   ];
   const gastos=[
     {id:uid(),categoria:'Salários',descricao:'Folha de pagamento',valor:8000,tipo:'Fixo',data:mo+'-01'},
@@ -931,69 +1006,65 @@ async function loadDemo() {
     {id:uid(),categoria:'Software/Assinaturas',descricao:'Adobe, Notion',valor:350,tipo:'Fixo',data:mo+'-01'},
     {id:uid(),categoria:'Salários',descricao:'Folha de pagamento',valor:8000,tipo:'Fixo',data:pm+'-01'},
     {id:uid(),categoria:'Marketing',descricao:'Instagram Ads',valor:1800,tipo:'Variável',data:pm+'-05'},
-    {id:uid(),categoria:'Salários',descricao:'Folha de pagamento',valor:7500,tipo:'Fixo',data:pm2+'-01'},
   ];
   const metas={[mo]:{leads:15,vendas:6,faturamento:15000,gastos_max:13000},[pm]:{leads:12,vendas:5,faturamento:12000,gastos_max:12000}};
   if(db){
-    for(const l of leads) await db.collection('leads').doc(l.id).set(l);
-    for(const v of vendas) await db.collection('vendas').doc(v.id).set(v);
-    for(const g of gastos) await db.collection('gastos').doc(g.id).set(g);
-    for(const [k,v] of Object.entries(metas)) await db.collection('metas').doc(k).set(v);
-    await dbSetConfig('socios',{lista:D.socios});
-  } else {
-    D.leads.push(...leads); D.vendas.push(...vendas); D.gastos.push(...gastos);
-    Object.assign(D.metas,metas); localSave();
-  }
-  toast('✅ Dados demo carregados!'); if(!db) go('dashboard');
+    for(const l of leads)await db.collection('leads').doc(l.id).set(l);
+    for(const v of vendas)await db.collection('vendas').doc(v.id).set(v);
+    for(const g of gastos)await db.collection('gastos').doc(g.id).set(g);
+    for(const[k,v]of Object.entries(metas))await db.collection('metas').doc(k).set(v);
+  }else{D.leads.push(...leads);D.vendas.push(...vendas);D.gastos.push(...gastos);Object.assign(D.metas,metas);localSave();}
+  toast('✅ Dados demo carregados!');if(!db)go('dashboard');
 }
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-function showModal(html){document.getElementById('mdiv').innerHTML=html; document.getElementById('mwrap').classList.add('open');}
-function closeModal(){document.getElementById('mwrap').classList.remove('open');}
+function showModal(html){document.getElementById('mdiv').innerHTML=html;document.getElementById('mwrap').classList.add('open');document.body.style.overflow='hidden';}
+function closeModal(){document.getElementById('mwrap').classList.remove('open');document.body.style.overflow='';}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
-document.getElementById('mwrap').addEventListener('click', e=>{if(e.target===document.getElementById('mwrap'))closeModal();});
+document.getElementById('mwrap').addEventListener('click',e=>{if(e.target===document.getElementById('mwrap'))closeModal();});
 
 // ── Event Delegation ──────────────────────────────────────────────────────────
-document.addEventListener('click', e => {
-  const el = e.target.closest('[data-action]');
-  if(!el) return;
-  const action = el.dataset.action;
-  const id = el.dataset.id || null;
-  const page = el.dataset.page || null;
-  const handlers = {
-    'nav':          () => go(page),
-    'prev-month':   () => { curMo=shiftMo(curMo,-1); go(curPage); },
-    'next-month':   () => { curMo=shiftMo(curMo,1);  go(curPage); },
-    'new-lead':     () => openLeadModal(),
-    'edit-lead':    () => openLeadModal(id),
-    'del-lead':     () => delLead(id),
-    'new-venda':    () => openVendaModal(),
-    'edit-venda':   () => openVendaModal(id),
-    'del-venda':    () => delVenda(id),
-    'new-gasto':    () => openGastoModal(),
-    'edit-gasto':   () => openGastoModal(id),
-    'del-gasto':    () => delGasto(id),
-    'close-modal':  () => closeModal(),
-    'export':       () => doExport(),
-    'import':       () => doImport(),
-    'demo':         () => loadDemo(),
-    'export-csv':   () => exportCSV(),
-    'print':        () => window.print(),
-    'add-socio':    () => addSocio(),
-    'rm-socio':     () => rmSocio(+id),
-    'save-socios':  () => saveSocios(),
-    'clear-all':    () => clearAll(),
-    'disconnect-fb':() => disconnectFB(),
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-action]');if(!el)return;
+  const action=el.dataset.action, id=el.dataset.id||null, page=el.dataset.page||null;
+  const H={
+    'nav':()=>go(page),
+    'open-sidebar':()=>openSidebar(),
+    'close-sidebar':()=>closeSidebar(),
+    'prev-month':()=>{curMo=shiftMo(curMo,-1);go(curPage);},
+    'next-month':()=>{curMo=shiftMo(curMo,1);go(curPage);},
+    'new-lead':()=>openLeadModal(),
+    'edit-lead':()=>openLeadModal(id),
+    'del-lead':()=>delLead(id),
+    'new-venda':()=>openVendaModal(),
+    'edit-venda':()=>openVendaModal(id),
+    'del-venda':()=>delVenda(id),
+    'new-gasto':()=>openGastoModal(),
+    'edit-gasto':()=>openGastoModal(id),
+    'del-gasto':()=>delGasto(id),
+    'new-item':()=>{
+      const map={leads:'new-lead',vendas:'new-venda',gastos:'new-gasto'};
+      if(map[curPage])H[map[curPage]]();
+    },
+    'close-modal':()=>closeModal(),
+    'export':()=>doExport(),
+    'import':()=>doImport(),
+    'demo':()=>loadDemo(),
+    'export-csv':()=>exportCSV(),
+    'print':()=>window.print(),
+    'add-socio':()=>addSocio(),
+    'rm-socio':()=>rmSocio(+id),
+    'save-socios':()=>saveSocios(),
+    'clear-all':()=>clearAll(),
+    'disconnect-fb':()=>disconnectFB(),
   };
-  if(handlers[action]) handlers[action]();
+  if(H[action])H[action]();
 });
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
 localLoad();
-const savedCfg = loadFBConfig();
-if(savedCfg) initFirebase(savedCfg);
-go('dashboard');
-updateBadges();
+const savedCfg=loadFBConfig();if(savedCfg)initFirebase(savedCfg);
+go('dashboard');updateBadges();
 </script>
 </body>
 </html>
